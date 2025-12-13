@@ -1,0 +1,100 @@
+{
+  "traceforge-test": {
+    "prefix": "tf-test",
+    "description": "Create a TraceForge test",
+    "body": [
+      "id: ${1:test-id}",
+      "name: ${2:Test name}",
+      "description: ${3:Test description}",
+      "tags:",
+      "  - ${4:tag}",
+      "",
+      "request:",
+      "  model: ${5|gpt-3.5-turbo,gpt-4,gpt-4-turbo|}",
+      "  messages:",
+      "    - role: ${6|system,user|}",
+      "      content: ${7:Message content}",
+      "  temperature: ${8:0.7}",
+      "",
+      "assertions:",
+      "  - type: ${9|exact,contains,not_contains,regex,json_path,fuzzy_match,token_count,latency|}",
+      "    field: ${10:choices.0.message.content}",
+      "    value: ${11:expected value}",
+      "",
+      "created_at: ${CURRENT_YEAR}-${CURRENT_MONTH}-${CURRENT_DATE}T${CURRENT_HOUR}:${CURRENT_MINUTE}:${CURRENT_SECOND}Z"
+    ]
+  },
+  "traceforge-assertion-contains": {
+    "prefix": "tf-assert-contains",
+    "description": "Add contains assertion",
+    "body": [
+      "- type: contains",
+      "  field: ${1:choices.0.message.content}",
+      "  value: ${2:expected text}",
+      "  description: ${3:Check if response contains text}"
+    ]
+  },
+  "traceforge-assertion-exact": {
+    "prefix": "tf-assert-exact",
+    "description": "Add exact match assertion",
+    "body": [
+      "- type: exact",
+      "  field: ${1:choices.0.message.content}",
+      "  value: ${2:expected value}",
+      "  description: ${3:Check for exact match}"
+    ]
+  },
+  "traceforge-assertion-regex": {
+    "prefix": "tf-assert-regex",
+    "description": "Add regex assertion",
+    "body": [
+      "- type: regex",
+      "  field: ${1:choices.0.message.content}",
+      "  pattern: ${2:^pattern$}",
+      "  description: ${3:Check if response matches regex}"
+    ]
+  },
+  "traceforge-assertion-latency": {
+    "prefix": "tf-assert-latency",
+    "description": "Add latency assertion",
+    "body": [
+      "- type: latency",
+      "  max: ${1:5000}",
+      "  description: ${2:Response time should be under Xms}"
+    ]
+  },
+  "traceforge-assertion-tokens": {
+    "prefix": "tf-assert-tokens",
+    "description": "Add token count assertion",
+    "body": [
+      "- type: token_count",
+      "  min: ${1:10}",
+      "  max: ${2:500}",
+      "  description: ${3:Token usage should be within range}"
+    ]
+  },
+  "traceforge-assertion-fuzzy": {
+    "prefix": "tf-assert-fuzzy",
+    "description": "Add fuzzy match assertion",
+    "body": [
+      "- type: fuzzy_match",
+      "  field: ${1:choices.0.message.content}",
+      "  value: ${2:expected text}",
+      "  threshold: ${3:0.8}",
+      "  description: ${4:Check for fuzzy match (80% similarity)}"
+    ]
+  },
+  "traceforge-fixtures": {
+    "prefix": "tf-fixtures",
+    "description": "Add test fixtures",
+    "body": [
+      "fixtures:",
+      "  setup:",
+      "    - ${1:echo 'Setting up...'}",
+      "  teardown:",
+      "    - ${2:echo 'Cleaning up...'}",
+      "  env:",
+      "    ${3:VAR_NAME}: ${4:value}"
+    ]
+  }
+}
