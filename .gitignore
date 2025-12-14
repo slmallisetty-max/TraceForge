@@ -31,6 +31,7 @@ logs/
 
 # Documentation (moved to landing folder)
 docs/
+landing/ARCHITECTURE.md
 
 # Temp
 tmp/
