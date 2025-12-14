@@ -29,6 +29,9 @@ logs/
 # AI Tests (local traces)
 .ai-tests/
 
+# Documentation (moved to landing folder)
+docs/
+
 # Temp
 tmp/
 temp/

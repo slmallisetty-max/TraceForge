@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TraceForge Documentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.0.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #e6edf3;
+            --text-secondary: #7d8590;
+            --accent: #58a6ff;
+            --accent-hover: #79c0ff;
+            --border: #30363d;
+            --success: #3fb950;
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .sidebar-header p {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .search-box {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px 12px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 12px 0;
+        }
+
+        .nav-item {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background-color: var(--bg-tertiary);
+            color: var(--accent);
+            border-left-color: var(--accent);
+        }
+
+        .nav-item .icon {
+            font-size: 16px;
+        }
+
+        /* Content Area */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px 60px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            font-size: 18px;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-right: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Markdown Styles */
+        .markdown-body h1 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .markdown-body h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-top: 32px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .markdown-body h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 24px;
+            margin-bottom: 12px;
+        }
+
+        .markdown-body h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+
+        .markdown-body p {
+            margin-bottom: 16px;
+            line-height: 1.7;
+        }
+
+        .markdown-body a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .markdown-body a:hover {
+            color: var(--accent-hover);
+            text-decoration: underline;
+        }
+
+        .markdown-body ul, .markdown-body ol {
+            margin-bottom: 16px;
+            padding-left: 32px;
+        }
+
+        .markdown-body li {
+            margin-bottom: 8px;
+        }
+
+        .markdown-body code {
+            background-color: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+        }
+
+        .markdown-body pre {
+            background-color: var(--bg-tertiary);
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+        }
+
+        .markdown-body pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .markdown-body blockquote {
+            border-left: 4px solid var(--border);
+            padding-left: 16px;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+
+        .markdown-body th, .markdown-body td {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+
+        .markdown-body th {
+            background-color: var(--bg-tertiary);
+            font-weight: 600;
+        }
+
+        .markdown-body img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            margin: 16px 0;
+        }
+
+        .markdown-body hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 32px 0;
+        }
+
+        /* Badges */
+        .markdown-body img[src*="shields.io"], 
+        .markdown-body img[src*="badge"] {
+            display: inline-block;
+            margin: 4px 4px 4px 0;
+        }
+
+        /* Table of Contents */
+        .toc {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 32px;
+        }
+
+        .toc h2 {
+            font-size: 16px;
+            margin: 0 0 12px 0;
+            padding: 0;
+            border: none;
+        }
+
+        .toc ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .toc li {
+            margin-bottom: 4px;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -100%;
+                top: 0;
+                height: 100%;
+                z-index: 1000;
+                transition: left 0.3s;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .mobile-menu-btn {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background-color: var(--accent);
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 56px;
+                height: 56px;
+                font-size: 24px;
+                cursor: pointer;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                z-index: 999;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-menu-btn {
+                display: none;
+            }
+        }
+
+        /* Back to top button */
+        .back-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+        }
+
+        .back-to-top:hover {
+            background-color: var(--accent-hover);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>🔧 TraceForge</h1>
+                <p>Local-First AI Debugging</p>
+            </div>
+
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search docs..." />
+            </div>
+
+            <nav class="nav-menu" id="navMenu">
+                <!-- Navigation items will be inserted here -->
+            </nav>
+        </div>
+
+        <!-- Content -->
+        <div class="content" id="content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <span>Loading documentation...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back to top button -->
+    <button class="back-to-top" id="backToTop" title="Back to top">↑</button>
+
+    <!-- Mobile menu button -->
+    <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+
+    <script>
+        // Documentation files
+        const docs = [
+            { 
+                id: 'index', 
+                title: 'Home', 
+                icon: '🏠', 
+                file: 'index.md',
+                description: 'Start here'
+            },
+            { 
+                id: 'getting-started', 
+                title: 'Getting Started', 
+                icon: '🚀', 
+                file: 'DEV-GETTING-STARTED.md',
+                description: 'First steps'
+            },
+            { 
+                id: 'api-reference', 
+                title: 'API Reference', 
+                icon: '📚', 
+                file: 'API-REFERENCE.md',
+                description: 'Complete reference'
+            },
+            { 
+                id: 'architecture', 
+                title: 'Architecture', 
+                icon: '🏗️', 
+                file: 'ARCHITECTURE.md',
+                description: 'How it works'
+            },
+            { 
+                id: 'tutorials', 
+                title: 'Tutorials', 
+                icon: '📖', 
+                file: 'TUTORIALS.md',
+                description: 'Learn by doing'
+            },
+            { 
+                id: 'troubleshooting', 
+                title: 'Troubleshooting', 
+                icon: '🔧', 
+                file: 'TROUBLESHOOTING.md',
+                description: 'Solve problems'
+            },
+            { 
+                id: 'contributing', 
+                title: 'Contributing', 
+                icon: '🤝', 
+                file: 'CONTRIBUTING.md',
+                description: 'Build features'
+            },
+            { 
+                id: 'advanced', 
+                title: 'Advanced Topics', 
+                icon: '⚡', 
+                file: 'ADVANCED.md',
+                description: 'Expert topics'
+            }
+        ];
+
+        let currentDoc = null;
+
+        // Configure marked
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+
+        // Initialize
+        function init() {
+            renderNavigation();
+            setupEventListeners();
+            
+            // Load initial doc from URL hash or default to home
+            const hash = window.location.hash.slice(1);
+            const doc = docs.find(d => d.id === hash) || docs[0];
+            loadDoc(doc.id);
+        }
+
+        // Render navigation
+        function renderNavigation() {
+            const navMenu = document.getElementById('navMenu');
+            navMenu.innerHTML = docs.map(doc => `
+                <div class="nav-item" data-doc="${doc.id}">
+                    <span class="icon">${doc.icon}</span>
+                    <div>
+                        <div style="font-weight: 500;">${doc.title}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">${doc.description}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add click handlers
+            navMenu.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const docId = item.dataset.doc;
+                    loadDoc(docId);
+                    
+                    // Close mobile menu if open
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('sidebar').classList.remove('open');
+                    }
+                });
+            });
+        }
+
+        // Load documentation
+        async function loadDoc(docId) {
+            const doc = docs.find(d => d.id === docId);
+            if (!doc) return;
+
+            currentDoc = doc;
+            
+            // Update active nav item
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.doc === docId);
+            });
+
+            // Update URL
+            window.location.hash = docId;
+
+            // Show loading
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Loading ${doc.title}...</span>
+                </div>
+            `;
+
+            try {
+                // Fetch markdown file
+                const response = await fetch(doc.file);
+                if (!response.ok) throw new Error('File not found');
+                
+                const markdown = await response.text();
+                
+                // Convert to HTML
+                const html = marked.parse(markdown);
+                
+                // Render
+                content.innerHTML = `
+                    <div class="markdown-body">
+                        ${html}
+                    </div>
+                    <div class="footer">
+                        <p>TraceForge Documentation • Last updated: December 2024</p>
+                        <p><a href="https://github.com/your-org/traceforge" target="_blank">GitHub</a> • 
+                           <a href="https://github.com/your-org/traceforge/issues" target="_blank">Report Issue</a></p>
+                    </div>
+                `;
+
+                // Scroll to top
+                content.scrollTop = 0;
+
+                // Process links (make relative links work)
+                processLinks(content);
+
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="markdown-body">
+                        <h1>Error Loading Documentation</h1>
+                        <p>Could not load <code>${doc.file}</code></p>
+                        <p>Error: ${error.message}</p>
+                        <p>Make sure the documentation files are in the same directory as this HTML file.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Process links in content
+        function processLinks(container) {
+            const links = container.querySelectorAll('a');
+            links.forEach(link => {
+                const href = link.getAttribute('href');
+                
+                // Handle internal doc links
+                if (href && href.endsWith('.md')) {
+                    const doc = docs.find(d => d.file === href);
+                    if (doc) {
+                        link.setAttribute('href', `#${doc.id}`);
+                        link.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            loadDoc(doc.id);
+                        });
+                    }
+                }
+                
+                // Open external links in new tab
+                if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                }
+            });
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Search
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    item.style.display = text.includes(query) ? 'flex' : 'none';
+                });
+            });
+
+            // Mobile menu
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const sidebar = document.getElementById('sidebar');
+            mobileMenuBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+            });
+
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768 && 
+                    !sidebar.contains(e.target) && 
+                    !mobileMenuBtn.contains(e.target)) {
+                    sidebar.classList.remove('open');
+                }
+            });
+
+            // Back to top button
+            const backToTop = document.getElementById('backToTop');
+            const content = document.getElementById('content');
+            
+            content.addEventListener('scroll', () => {
+                if (content.scrollTop > 300) {
+                    backToTop.classList.add('visible');
+                } else {
+                    backToTop.classList.remove('visible');
+                }
+            });
+
+            backToTop.addEventListener('click', () => {
+                content.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+            // Handle browser back/forward
+            window.addEventListener('hashchange', () => {
+                const hash = window.location.hash.slice(1);
+                const doc = docs.find(d => d.id === hash);
+                if (doc && doc.id !== currentDoc?.id) {
+                    loadDoc(doc.id);
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + K for search
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    searchInput.focus();
+                }
+            });
+        }
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
