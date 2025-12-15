@@ -1,11 +1,38 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import staticFiles from '@fastify/static';
-import { join, resolve } from 'path';
-import { readdir, readFile, writeFile } from 'fs/promises';
+import { join, resolve, dirname } from 'path';
+import { readdir, readFile, writeFile, access } from 'fs/promises';
+import { existsSync } from 'fs';
 import { parse, stringify } from 'yaml';
 import type { Trace, Config, Test } from '@traceforge/shared';
 import { randomUUID } from 'crypto';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Find workspace root by looking for pnpm-workspace.yaml
+function findWorkspaceRoot(): string {
+  let currentDir = process.cwd();
+  
+  // Traverse up until we find pnpm-workspace.yaml or reach the root
+  while (currentDir !== dirname(currentDir)) {
+    if (existsSync(join(currentDir, 'pnpm-workspace.yaml'))) {
+      return currentDir;
+    }
+    currentDir = dirname(currentDir);
+  }
+  
+  // Fallback to cwd if not found
+  return process.cwd();
+}
+
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const WORKSPACE_ROOT = findWorkspaceRoot();
+const TRACES_DIR = resolve(WORKSPACE_ROOT, '.ai-tests/traces');
+const TESTS_DIR = resolve(WORKSPACE_ROOT, '.ai-tests/tests');
+const CONFIG_PATH = resolve(WORKSPACE_ROOT, '.ai-tests/config.yaml');
 
 const fastify = Fastify({
   logger: {
@@ -22,13 +49,8 @@ const fastify = Fastify({
 
 // Register CORS
 await fastify.register(cors, {
-  origin: true,
+  origin: isDevelopment ? 'http://localhost:5173' : true,
 });
-
-// Paths
-const TRACES_DIR = resolve(process.cwd(), '.ai-tests/traces');
-const TESTS_DIR = resolve(process.cwd(), '.ai-tests/tests');
-const CONFIG_PATH = resolve(process.cwd(), '.ai-tests/config.yaml');
 
 // API Routes
 
@@ -167,20 +189,6 @@ fastify.get('/api/tests', async (request, reply) => {
   } catch (error: any) {
     request.log.error(error);
     return reply.code(500).send({ error: error.message });
-  }
-});
-
-// GET /api/config - Get configuration
-fastify.get('/api/config', async (request, reply) => {
-  try {
-    const content = await readFile(CONFIG_PATH, 'utf-8');
-    const config: Config = parse(content);
-    return { config };
-  } catch (error: any) {
-    request.log.error(error);
-    return reply.code(500).send({ 
-      error: 'Config not found. Run "traceforge init" first.' 
-    });
   }
 });
 
@@ -351,31 +359,46 @@ fastify.get('/health', async () => {
 });
 
 // Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  const distPath = resolve(__dirname, '../dist/client');
-  await fastify.register(staticFiles, {
-    root: distPath,
-    prefix: '/',
-  });
+if (!isDevelopment) {
+  const clientPath = resolve(__dirname, '../client');
+  
+  try {
+    await access(clientPath);
+    await fastify.register(staticFiles, {
+      root: clientPath,
+      prefix: '/',
+    });
 
-  // SPA fallback
-  fastify.setNotFoundHandler(async (_request, reply) => {
-    return reply.sendFile('index.html');
-  });
+    // SPA fallback - serve index.html for all non-API routes
+    fastify.setNotFoundHandler((request, reply) => {
+      if (request.url.startsWith('/api')) {
+        reply.code(404).send({ error: 'Not found' });
+      } else {
+        reply.sendFile('index.html');
+      }
+    });
+    
+    fastify.log.info('Serving static files from dist/client');
+  } catch (error) {
+    fastify.log.warn('Client build not found. Run `pnpm build` to generate production files.');
+  }
+} else {
+  fastify.log.info('Development mode: Client should be served by Vite on port 5173');
 }
 
 // Start server
 const start = async () => {
   try {
-    const port = parseInt(process.env.WEB_PORT || '3001');
+    const port = parseInt(process.env.PORT || process.env.WEB_PORT || '3001');
     await fastify.listen({ port, host: '0.0.0.0' });
     
-    console.log(`\n🌐 TraceForge Web UI running on http://localhost:${port}`);
-    console.log(`📊 API available at http://localhost:${port}/api`);
-    if (process.env.NODE_ENV === 'production') {
-      console.log(`🎨 Frontend served from /dist/client`);
+    console.log(`\n🚀 TraceForge Web ${isDevelopment ? '(Development)' : '(Production)'}`);
+    console.log(`📊 API: http://localhost:${port}/api`);
+    if (isDevelopment) {
+      console.log(`🎨 UI:  http://localhost:5173 (Vite dev server)`);
+      console.log(`💡 Tip: Run 'pnpm dev' from root to start all services`);
     } else {
-      console.log(`🔧 Development mode - use Vite for frontend (port 5173)`);
+      console.log(`🎨 UI:  http://localhost:${port}`);
     }
     console.log();
   } catch (err) {
