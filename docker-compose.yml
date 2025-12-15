@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  traceforge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8787:8787"  # Proxy
+      - "3001:3001"  # Web UI
+    environment:
+      - NODE_ENV=production
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./.ai-tests:/app/.ai-tests
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Run demo app in separate container
+  demo-app:
+    build:
+      context: ./examples/demo-app
+      dockerfile: Dockerfile
+    environment:
+      - OPENAI_BASE_URL=http://traceforge:8787/v1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - traceforge
+    profiles:
+      - demo

@@ -7,14 +7,18 @@
   "author": "TraceForge Team",
   "license": "MIT",
   "scripts": {
+    "dev": "concurrently -n proxy,web -c cyan,magenta \"pnpm --filter @traceforge/proxy dev\" \"pnpm --filter @traceforge/web dev\"",
+    "start": "concurrently -n proxy,web -c cyan,magenta \"pnpm --filter @traceforge/proxy start\" \"pnpm --filter @traceforge/web start\"",
     "build": "pnpm -r build",
-    "dev": "pnpm -r --parallel dev",
+    "test:demo": "node examples/demo-app/index.js",
+    "test:integration": "powershell -File test-integration.ps1",
     "clean": "pnpm -r clean",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "concurrently": "^8.2.2",
     "typescript": "^5.3.0"
   },
   "engines": {

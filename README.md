@@ -10,19 +10,20 @@
 ## Overview
 
 TraceForge helps developers debug AI applications by:
-- 🔍 Intercepting and logging all LLM API calls
+- 🔍 **Intercepting and logging** all LLM API calls
 - 🤖 **Multi-provider support** (OpenAI, Anthropic Claude, Google Gemini, Ollama)
-- 📊 Visualizing traces in a web interface with streaming support
-- 🔄 Side-by-side trace comparison with deep diff view
-- ✅ Creating deterministic tests from traces
-- 🧪 Advanced assertions with fuzzy matching and JSON path queries
-- 📈 Analytics dashboard with performance metrics
-- ⚙️ Web-based configuration editor
-- 🏃 Parallel test execution with fixtures and watch mode
-- 🔌 VS Code extension with test tree view
-- 🔒 Keeping all data on your machine (zero cloud)
-- ⚡ Auto-refreshing timeline (5 second intervals)
-- 🌙 Dark mode UI built with React + TailwindCSS
+- 📊 **Visualizing traces** in a web interface with streaming support
+- 🔄 **Side-by-side comparison** with deep diff view and similarity scoring
+- ✅ **Creating deterministic tests** from captured traces
+- 🧪 **8 advanced assertion types** (exact, contains, regex, fuzzy, JSON path, latency, tokens)
+- 📈 **Analytics dashboard** with 6 metrics, timeline charts, and model distribution
+- ⚙️ **Web-based config editor** with real-time validation
+- 🏃 **Parallel test execution** with fixtures, watch mode, and JUnit XML reporting
+- 🔌 **VS Code extension** with TreeView, commands, and YAML snippets
+- 🎯 **Provider auto-detection** from model name (no config changes needed)
+- 🔒 **100% local-first** - all data stays on your machine (zero cloud)
+- ⚡ **Auto-refreshing timeline** (5 second intervals)
+- 🌙 **Dark mode UI** built with React + TailwindCSS
 
 ## Architecture
 
@@ -43,22 +44,28 @@ TraceForge helps developers debug AI applications by:
 - Node.js 18+ 
 - pnpm 8+
 
-### Installation
+### Installation & Start (ONE Command!)
 
 ```bash
 # Install dependencies
 pnpm install
 
-# Build all packages
-pnpm build
-
-# Start the proxy server
-cd packages/proxy
-pnpm start
-
-# In another terminal, start the web UI
-cd packages/web
+# Start EVERYTHING (proxy + API + UI)
 pnpm dev
+```
+
+**That's it!** ✅ All services running:
+- 🔵 Proxy: http://localhost:8787
+- 🟣 API: http://localhost:3001
+- 🟢 UI: http://localhost:5173
+
+**Alternative options:**
+```bash
+# PowerShell script with checks
+.\dev.ps1
+
+# Docker (zero setup)
+docker-compose up
 ```
 
 ### Usage
@@ -89,14 +96,20 @@ pnpm dev
 
 6. **Run tests:**
    ```bash
-   # Run all tests
+   # Run all tests (parallel by default)
    pnpm --filter @traceforge/cli start test run
    
-   # Run in parallel
-   pnpm --filter @traceforge/cli start test run --parallel
+   # Run with specific options
+   pnpm --filter @traceforge/cli start test run --parallel --concurrency 10
    
-   # Watch mode
+   # Watch mode for rapid development
    pnpm --filter @traceforge/cli start test run --watch
+   
+   # Generate JUnit XML for CI/CD
+   pnpm --filter @traceforge/cli start test run --junit results.xml
+   
+   # Filter by tags
+   pnpm --filter @traceforge/cli start test run --tag smoke integration
    ```
 
 ## Project Structure
@@ -135,29 +148,43 @@ pnpm lint
 
 ## Documentation
 
-### V2 Features
-- [Phase 1: Streaming Support](docs/v2-phase-1-streaming.md)
-- [Phase 2: Trace Diff View](docs/v2-phase-2-diff-view.md)
-- [Phase 3: Advanced Assertions](docs/v2-phase-3-advanced-assertions.md)
-- [Phase 4: Dashboard](docs/v2-phase-4-dashboard.md)
-- [Phase 5: Config Editor](docs/v2-phase-5-config-editor.md)
-- [Phase 6: Test Runner Improvements](docs/v2-phase-6-test-runner.md)
-- [Phase 7: VS Code Extension](docs/v2-phase-7-vscode-extension.md)
-- [Phase 8: Multi-Provider Support](docs/v2-phase-8-multi-provider.md) ⭐ **NEW**
+### V2 Features (All Phases Complete!)
+- [Phase 1: Streaming Support](docs/v2-phase1-streaming-complete.md) - SSE streaming with chunk capture & replay
+- [Phase 2: Trace Diff View](docs/v2-phase2-diff-view-complete.md) - Side-by-side comparison with deep diff
+- [Phase 3: Advanced Assertions](docs/v2-phase3-advanced-assertions-complete.md) - 8 assertion types with fuzzy matching
+- [Phase 4: Dashboard](docs/v2-phase4-dashboard-complete.md) - Analytics with 6 metrics and timeline charts
+- [Phase 5: Config Editor](docs/v2-phase5-config-editor-complete.md) - Web-based YAML editor with validation
+- [Phase 6: Test Runner Improvements](docs/v2-phase6-test-runner-complete.md) - Parallel execution, fixtures, watch mode, JUnit
+- [Phase 7: VS Code Extension](docs/v2-phase7-vscode-extension-complete.md) - TreeView, commands, YAML snippets
+- [Phase 8: Multi-Provider Support](docs/v2-phase-8-multi-provider.md) - OpenAI, Claude, Gemini, Ollama
 
 ### Planning
 - [Implementation Guide](docs/v1-implementation-guide.md) - Original development plan
 - [MVP Plan](docs/mvp-plan.md) - Product roadmap and features
 - [Product Idea](docs/idea.md) - Original concept and vision
 
+## VS Code Extension
+
+Install the TraceForge extension for an integrated development experience:
+
+- 📂 **TreeView panels** for traces and tests
+- ▶️ **Run tests** directly from editor
+- ➕ **Create tests** from traces with one click
+- 🎨 **YAML snippets** for test authoring (type `tf-test`)
+- 🔄 **Auto-refresh** traces and tests every 5 seconds
+- 🚀 **Proxy management** - start/stop from status bar
+- 📊 **Open dashboard** with one click
+
+See [VS Code Extension Guide](docs/v2-phase7-vscode-extension-complete.md) for installation and usage.
+
 ## Multi-Provider Support
 
-TraceForge now supports multiple AI providers with automatic routing:
+TraceForge supports multiple AI providers with automatic routing:
 
-- **OpenAI**: GPT-4, GPT-3.5-turbo (default)
-- **Anthropic**: Claude 3 Opus, Claude 3 Sonnet
+- **OpenAI**: GPT-4, GPT-3.5-turbo, GPT-4-turbo (default)
+- **Anthropic**: Claude 3 Opus, Claude 3 Sonnet, Claude 2.1
 - **Google**: Gemini Pro, Gemini Pro Vision
-- **Ollama**: Llama 2, Mistral, CodeLlama (local)
+- **Ollama**: Llama 2, Mistral, CodeLlama, Phi (local, no API key needed)
 
 Just change the model name - TraceForge handles the rest:
 
