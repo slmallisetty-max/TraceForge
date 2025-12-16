@@ -1,4 +1,4 @@
-# TraceForge
+# TraceForge.baseline
 
 > Local-first AI debugging platform that captures, inspects, and tests LLM interactions
 
@@ -9,7 +9,7 @@
 
 ## Overview
 
-TraceForge helps developers debug AI applications by:
+TraceForge.baseline helps developers debug AI applications by:
 - 🔍 **Intercepting and logging** all LLM API calls
 - 🤖 **Multi-provider support** (OpenAI, Anthropic Claude, Google Gemini, Ollama)
 - 📊 **Visualizing traces** in a web interface with streaming support
@@ -165,7 +165,7 @@ pnpm lint
 
 ## VS Code Extension
 
-Install the TraceForge extension for an integrated development experience:
+Install the TraceForge.baseline extension for an integrated development experience:
 
 - 📂 **TreeView panels** for traces and tests
 - ▶️ **Run tests** directly from editor
@@ -179,14 +179,14 @@ See [VS Code Extension Guide](docs/v2-phase7-vscode-extension-complete.md) for i
 
 ## Multi-Provider Support
 
-TraceForge supports multiple AI providers with automatic routing:
+TraceForge.baseline supports multiple AI providers with automatic routing:
 
 - **OpenAI**: GPT-4, GPT-3.5-turbo, GPT-4-turbo (default)
 - **Anthropic**: Claude 3 Opus, Claude 3 Sonnet, Claude 2.1
 - **Google**: Gemini Pro, Gemini Pro Vision
 - **Ollama**: Llama 2, Mistral, CodeLlama, Phi (local, no API key needed)
 
-Just change the model name - TraceForge handles the rest:
+Just change the model name - TraceForge.baseline handles the rest:
 
 ```python
 # Use Claude
