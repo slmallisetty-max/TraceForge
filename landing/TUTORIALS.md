@@ -1,6 +1,6 @@
-# TraceForge Tutorials
+# TraceForge.baseline Tutorials
 
-Step-by-step guides for common TraceForge workflows and use cases.
+Step-by-step guides for common TraceForge.baseline workflows and use cases.
 
 ---
 
@@ -22,7 +22,7 @@ Step-by-step guides for common TraceForge workflows and use cases.
 
 **Time**: 10 minutes
 
-### Step 1: Set Up TraceForge
+### Step 1: Set Up TraceForge.baseline
 
 ```bash
 # Start the proxy
@@ -46,7 +46,7 @@ const OpenAI = require('openai');
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  baseURL: 'http://localhost:8787/v1'  // Point to TraceForge
+  baseURL: 'http://localhost:8787/v1'  // Point to TraceForge.baseline
 });
 
 async function askQuestion() {
@@ -744,7 +744,7 @@ assertions:
 
 ## Tutorial 5: CI/CD Integration
 
-**Goal**: Add TraceForge to your CI/CD pipeline
+**Goal**: Add TraceForge.baseline to your CI/CD pipeline
 
 **Time**: 20 minutes
 
@@ -782,7 +782,7 @@ jobs:
       - name: Build packages
         run: pnpm build
       
-      - name: Start TraceForge proxy
+      - name: Start TraceForge.baseline proxy
         run: |
           cd packages/proxy
           pnpm start &

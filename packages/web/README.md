@@ -1,4 +1,4 @@
-# TraceForge Web UI
+# TraceForge.baseline Web UI
 
 Browser-based interface for inspecting LLM traces and creating tests.
 
