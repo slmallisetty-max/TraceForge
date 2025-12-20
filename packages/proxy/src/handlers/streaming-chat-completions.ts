@@ -58,6 +58,7 @@ export async function streamingChatCompletionsHandler(
 
     let buffer = '';
     
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       const { done, value } = await reader.read();
       
@@ -97,7 +98,7 @@ export async function streamingChatCompletionsHandler(
             
             // Forward chunk to client
             reply.raw.write(`data: ${JSON.stringify(chunk)}\n\n`);
-          } catch (e) {
+          } catch {
             // Invalid JSON, just forward as-is
             reply.raw.write(`${line}\n`);
           }

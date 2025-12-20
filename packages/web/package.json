@@ -15,7 +15,7 @@
     "clean": "rimraf dist",
     "typecheck": "tsc --noEmit",
     "test": "echo \"No tests yet\" && exit 0",
-    "lint": "echo \"No lint config\" && exit 0"
+    "lint": "eslint src server --ext ts,tsx"
   },
   "dependencies": {
     "@fastify/cors": "^8.4.2",

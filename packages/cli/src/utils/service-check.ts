@@ -12,7 +12,7 @@ export async function checkServiceAvailability(url: string, timeout = 5000): Pro
 
     clearTimeout(timeoutId);
     return response.ok;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

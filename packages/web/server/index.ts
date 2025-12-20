@@ -379,7 +379,7 @@ if (!isDevelopment) {
     });
     
     fastify.log.info('Serving static files from dist/client');
-  } catch (error) {
+  } catch {
     fastify.log.warn('Client build not found. Run `pnpm build` to generate production files.');
   }
 } else {

@@ -3,7 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "description": "Local-first AI debugging platform",
-  "keywords": ["ai", "debugging", "llm", "openai", "testing"],
+  "keywords": [
+    "ai",
+    "debugging",
+    "llm",
+    "openai",
+    "testing"
+  ],
   "author": "TraceForge Team",
   "license": "Apache-2.0",
   "scripts": {
@@ -19,7 +25,10 @@
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/parser": "^8.50.0",
     "concurrently": "^8.2.2",
+    "eslint": "^8.57.1",
     "husky": "^8.0.3",
     "lint-staged": "^15.2.0",
     "typescript": "^5.3.0"

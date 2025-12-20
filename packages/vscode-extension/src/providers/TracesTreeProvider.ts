@@ -23,11 +23,11 @@ export class TracesTreeProvider implements vscode.TreeDataProvider<TraceItem> {
     this._onDidChangeTreeData.fire();
   }
 
-  getTreeItem(element: TraceItem): vscode.TreeItem {
-    return element;
+  getTreeItem(_element: TraceItem): vscode.TreeItem {
+    return _element;
   }
 
-  async getChildren(element?: TraceItem): Promise<TraceItem[]> {
+  async getChildren(_element?: TraceItem): Promise<TraceItem[]> {
     if (!this.workspaceRoot) {
       return [];
     }

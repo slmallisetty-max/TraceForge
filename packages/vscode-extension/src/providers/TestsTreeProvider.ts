@@ -21,11 +21,11 @@ export class TestsTreeProvider implements vscode.TreeDataProvider<TestItem> {
     this._onDidChangeTreeData.fire();
   }
 
-  getTreeItem(element: TestItem): vscode.TreeItem {
-    return element;
+  getTreeItem(_element: TestItem): vscode.TreeItem {
+    return _element;
   }
 
-  async getChildren(element?: TestItem): Promise<TestItem[]> {
+  async getChildren(_element?: TestItem): Promise<TestItem[]> {
     if (!this.workspaceRoot) {
       return [];
     }

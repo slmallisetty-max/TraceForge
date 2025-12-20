@@ -15,7 +15,7 @@
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "test": "echo \"No tests yet\" && exit 0",
-    "lint": "echo \"No lint config\" && exit 0"
+    "lint": "eslint src --ext ts"
   },
   "dependencies": {
     "@traceforge/shared": "workspace:*",
