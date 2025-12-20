@@ -1,6 +1,7 @@
 // Core types for TraceForge
 
 export interface Trace {
+  schema_version?: string;       // Schema version for migrations
   id: string;                    // UUID
   timestamp: string;             // ISO 8601
   endpoint: string;              // e.g., "/v1/chat/completions"

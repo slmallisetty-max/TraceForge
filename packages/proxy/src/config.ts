@@ -14,7 +14,15 @@ const DEFAULT_CONFIG: Config = {
 
 const CONFIG_PATH = resolve(process.cwd(), '.ai-tests/config.yaml');
 
+// Cache the loaded config
+let cachedConfig: Config | null = null;
+
 export async function loadConfig(): Promise<Config> {
+  // Return cached config if already loaded
+  if (cachedConfig !== null) {
+    return cachedConfig;
+  }
+
   // Create .ai-tests directory if it doesn't exist
   const aiTestsDir = resolve(process.cwd(), '.ai-tests');
   if (!existsSync(aiTestsDir)) {
@@ -28,13 +36,17 @@ export async function loadConfig(): Promise<Config> {
     try {
       const content = await readFile(CONFIG_PATH, 'utf-8');
       const userConfig = parse(content);
-      return { ...DEFAULT_CONFIG, ...userConfig };
+      const loadedConfig = { ...DEFAULT_CONFIG, ...userConfig };
+      cachedConfig = loadedConfig;
+      return loadedConfig;
     } catch (error) {
       console.warn('Failed to load config, using defaults:', error);
+      cachedConfig = DEFAULT_CONFIG;
       return DEFAULT_CONFIG;
     }
   }
 
+  cachedConfig = DEFAULT_CONFIG;
   return DEFAULT_CONFIG;
 }
 

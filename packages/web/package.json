@@ -2,6 +2,7 @@
   "name": "@traceforge/web",
   "version": "0.1.0",
   "description": "Web UI for TraceForge",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "dev": "concurrently -n api,ui -c blue,green \"pnpm:dev:server\" \"pnpm:dev:client\"",
@@ -12,7 +13,9 @@
     "build:client": "vite build",
     "start": "cross-env NODE_ENV=production node dist/server/index.js",
     "clean": "rimraf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests yet\" && exit 0",
+    "lint": "eslint src server --ext ts,tsx"
   },
   "dependencies": {
     "@fastify/cors": "^8.4.2",

@@ -29,9 +29,14 @@ logs/
 # AI Tests (local traces)
 .ai-tests/
 
-# Documentation (moved to landing folder)
-docs/
-landing/ARCHITECTURE.md
+# Trace files (may contain sensitive data)
+**/traces/
+**/trace-*.json
+*.trace.json
+
+# Test outputs
+junit.xml
+test-results/
 
 # Temp
 tmp/
