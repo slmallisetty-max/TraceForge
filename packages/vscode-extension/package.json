@@ -3,6 +3,7 @@
   "displayName": "TraceForge",
   "description": "AI debugging and testing for LLM applications",
   "version": "0.1.0",
+  "license": "Apache-2.0",
   "publisher": "traceforge",
   "engines": {
     "vscode": "^1.80.0"

@@ -1,8 +1,11 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { LLMRequest, StreamChunk, StreamingTrace } from '@traceforge/shared';
 import { v4 as uuidv4 } from 'uuid';
-import { loadConfig } from '../config.js';
+import { loadConfig, getApiKey } from '../config.js';
 import { TraceStorage } from '../storage.js';
+
+// Limit chunks to prevent OOM (10000 chunks ~= 1-2MB depending on content)
+const MAX_CHUNKS = 10000;
 
 interface StreamingChatCompletionsRequest extends FastifyRequest {
   body: LLMRequest;
@@ -21,12 +24,14 @@ export async function streamingChatCompletionsHandler(
   let lastChunkTime = requestStartTime;
   
   try {
+    const apiKey = getApiKey(config);
+    
     // Forward request to upstream
     const upstreamResponse = await fetch(`${config.upstream_url}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': request.headers.authorization || '',
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify(request.body),
     });
@@ -85,7 +90,10 @@ export async function streamingChatCompletionsHandler(
             chunk.delta_ms = now - lastChunkTime;
             lastChunkTime = now;
             
-            chunks.push(chunk);
+            // Only store chunks if under limit
+            if (chunks.length < MAX_CHUNKS) {
+              chunks.push(chunk);
+            }
             
             // Forward chunk to client
             reply.raw.write(`data: ${JSON.stringify(chunk)}\n\n`);

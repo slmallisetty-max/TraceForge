@@ -5,7 +5,7 @@
   "description": "Local-first AI debugging platform",
   "keywords": ["ai", "debugging", "llm", "openai", "testing"],
   "author": "TraceForge Team",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "concurrently -n proxy,web -c cyan,magenta \"pnpm --filter @traceforge/proxy dev\" \"pnpm --filter @traceforge/web dev\"",
     "start": "concurrently -n proxy,web -c cyan,magenta \"pnpm --filter @traceforge/proxy start\" \"pnpm --filter @traceforge/web start\"",
@@ -14,12 +14,26 @@
     "test:integration": "powershell -File test-integration.ps1",
     "clean": "pnpm -r clean",
     "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "prepare": "husky install"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "concurrently": "^8.2.2",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
     "typescript": "^5.3.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "echo 'Linting files...'"
+    ],
+    "**/.ai-tests/traces/**": [
+      "echo Warning: You are committing trace files. Review for sensitive data! && exit 1"
+    ],
+    "**/traces/**": [
+      "echo Warning: You are committing trace files. Review for sensitive data! && exit 1"
+    ]
   },
   "engines": {
     "node": ">=18.0.0",

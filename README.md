@@ -5,7 +5,7 @@
 [![Status](https://img.shields.io/badge/status-V2%20Complete-brightgreen)]()
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)]()
-[![License](https://img.shields.io/badge/license-MIT-green)]()
+[![License](https://img.shields.io/badge/license-Apache%202.0-green)]()
 
 ## Overview
 
@@ -48,10 +48,10 @@ TraceForge.baseline helps developers debug AI applications by:
 
 ```bash
 # Install dependencies
-pnpm install
+npx pnpm install
 
 # Start EVERYTHING (proxy + API + UI)
-pnpm dev
+npx pnpm dev
 ```
 
 **That's it!** ✅ All services running:
@@ -85,31 +85,31 @@ docker-compose up
 3. **View traces:**
    - Web UI: http://localhost:3001
    - Dashboard: http://localhost:3001/dashboard
-   - CLI: `pnpm --filter @traceforge/cli start trace list`
+   - CLI: `npx pnpm --filter @traceforge/cli start trace list`
 
 4. **Compare traces:**
    - Click "Compare" button in web UI to see side-by-side diff
 
 5. **Create tests from traces:**
    - Click "Save as Test" in the web UI
-   - Or use CLI: `pnpm --filter @traceforge/cli start test create-from-trace <trace-id>`
+   - Or use CLI: `npx pnpm --filter @traceforge/cli start test create-from-trace <trace-id>`
 
 6. **Run tests:**
    ```bash
    # Run all tests (parallel by default)
-   pnpm --filter @traceforge/cli start test run
+   npx pnpm --filter @traceforge/cli start test run
    
    # Run with specific options
-   pnpm --filter @traceforge/cli start test run --parallel --concurrency 10
+   npx pnpm --filter @traceforge/cli start test run --parallel --concurrency 10
    
    # Watch mode for rapid development
-   pnpm --filter @traceforge/cli start test run --watch
+   npx pnpm --filter @traceforge/cli start test run --watch
    
    # Generate JUnit XML for CI/CD
-   pnpm --filter @traceforge/cli start test run --junit results.xml
+   npx pnpm --filter @traceforge/cli start test run --junit results.xml
    
    # Filter by tags
-   pnpm --filter @traceforge/cli start test run --tag smoke integration
+   npx pnpm --filter @traceforge/cli start test run --tag smoke integration
    ```
 
 ## Project Structure
@@ -131,37 +131,33 @@ traceforge/
 
 ```bash
 # Install dependencies
-pnpm install
+npx pnpm install
 
 # Build all packages
-pnpm build
+npx pnpm build
 
 # Run in development mode (with watch)
-pnpm dev
+npx pnpm dev
 
 # Type check
-pnpm typecheck
+npx pnpm typecheck
 
 # Lint
-pnpm lint
+npx pnpm lint
 ```
 
-## Documentation
+## Development Commands
 
-### V2 Features (All Phases Complete!)
-- [Phase 1: Streaming Support](docs/v2-phase1-streaming-complete.md) - SSE streaming with chunk capture & replay
-- [Phase 2: Trace Diff View](docs/v2-phase2-diff-view-complete.md) - Side-by-side comparison with deep diff
-- [Phase 3: Advanced Assertions](docs/v2-phase3-advanced-assertions-complete.md) - 8 assertion types with fuzzy matching
-- [Phase 4: Dashboard](docs/v2-phase4-dashboard-complete.md) - Analytics with 6 metrics and timeline charts
-- [Phase 5: Config Editor](docs/v2-phase5-config-editor-complete.md) - Web-based YAML editor with validation
-- [Phase 6: Test Runner Improvements](docs/v2-phase6-test-runner-complete.md) - Parallel execution, fixtures, watch mode, JUnit
-- [Phase 7: VS Code Extension](docs/v2-phase7-vscode-extension-complete.md) - TreeView, commands, YAML snippets
-- [Phase 8: Multi-Provider Support](docs/v2-phase-8-multi-provider.md) - OpenAI, Claude, Gemini, Ollama
+```bash
+# Run all tests
+npx pnpm test
 
-### Planning
-- [Implementation Guide](docs/v1-implementation-guide.md) - Original development plan
-- [MVP Plan](docs/mvp-plan.md) - Product roadmap and features
-- [Product Idea](docs/idea.md) - Original concept and vision
+# Watch mode
+npx pnpm test --watch
+
+# Build all packages
+npx pnpm build
+```
 
 ## VS Code Extension
 
@@ -174,8 +170,6 @@ Install the TraceForge.baseline extension for an integrated development experien
 - 🔄 **Auto-refresh** traces and tests every 5 seconds
 - 🚀 **Proxy management** - start/stop from status bar
 - 📊 **Open dashboard** with one click
-
-See [VS Code Extension Guide](docs/v2-phase7-vscode-extension-complete.md) for installation and usage.
 
 ## Multi-Provider Support
 
@@ -202,11 +196,29 @@ response = openai.ChatCompletion.create(
 )
 ```
 
-See [Multi-Provider Documentation](docs/v2-phase-8-multi-provider.md) for details.
-
 ## License
 
-MIT
+Apache 2.0
+
+## Community & Support
+
+- [SUPPORT.md](SUPPORT.md) - How to get help
+- [CHANGELOG.md](CHANGELOG.md) - Version history
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) - Community standards
+
+## Contributing
+
+We welcome contributions! Please see:
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
+- [SECURITY.md](SECURITY.md) - Security policy and best practices
+
+## Documentation
+
+- [Getting Started](docs/getting-started.md) - Quick start guide
+- [Architecture (Visual)](docs/architecture-visual.md) - System diagrams and data flow
+- [Trace Format](docs/trace-format.md) - Trace file structure and schema
+- [Baseline Format](docs/baseline-format.md) - Test and assertion format
+- [Implementation Summary](docs/implementation-summary.md) - Recent improvements
 
 ## Status
 
@@ -216,3 +228,5 @@ MIT
 - V2 Phase 1-8: Complete
 - Multi-provider support ready
 - VS Code extension available
+- Security hardening complete
+- OSS governance in place

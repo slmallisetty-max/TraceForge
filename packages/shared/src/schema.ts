@@ -1,6 +1,9 @@
 // Zod schemas for runtime validation
 import { z } from 'zod';
 
+// Schema version - increment when making breaking changes
+export const TRACE_SCHEMA_VERSION = '1.0.0';
+
 // Chat message schema
 export const ChatMessageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant', 'function']),
@@ -59,6 +62,7 @@ export const TraceMetadataSchema = z.object({
 
 // Trace schema
 export const TraceSchema = z.object({
+  schema_version: z.string().default(TRACE_SCHEMA_VERSION),
   id: z.string().uuid(),
   timestamp: z.string().datetime(),
   endpoint: z.string(),
