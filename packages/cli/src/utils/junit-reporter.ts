@@ -1,5 +1,5 @@
 import { writeFile } from 'fs/promises';
-import type { TestResult } from '@traceforge/shared';
+import type { TestResult, AssertionResult } from '@traceforge/shared';
 
 export interface JUnitTestCase {
   name: string;
@@ -52,9 +52,9 @@ export function generateJUnitXML(results: TestResult[], suiteName: string = 'Tra
         text: result.error,
       };
     } else if (!result.passed) {
-      const failedAssertions = result.assertions.filter(a => !a.passed);
+      const failedAssertions = result.assertions.filter((a: AssertionResult) => !a.passed);
       const message = failedAssertions
-        .map(a => `${a.assertion.type}: ${a.message || a.error || 'Failed'}`)
+        .map((a: AssertionResult) => `${a.assertion.type}: ${a.message || a.error || 'Failed'}`)
         .join('\n');
       
       testcase.failure = {
