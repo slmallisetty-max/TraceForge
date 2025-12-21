@@ -124,6 +124,28 @@ export interface AssertionResult {
   error?: string;
 }
 
+// VCR types
+export type VCRMode = 'off' | 'record' | 'replay' | 'auto';
+export type VCRMatchMode = 'exact' | 'fuzzy';
+
+export interface VCRConfig {
+  mode: VCRMode;
+  match_mode: VCRMatchMode;
+  cassettes_dir: string;
+}
+
+export interface Cassette {
+  cassette_version: string;
+  provider: string;
+  request: LLMRequest;
+  response: {
+    status: number;
+    headers: Record<string, string>;
+    body: LLMResponse | { error: any };
+  };
+  recorded_at: string;
+}
+
 // Configuration
 export interface Config {
   upstream_url: string;
@@ -134,6 +156,7 @@ export interface Config {
   max_trace_retention?: number;  // days
   redact_fields?: string[];
   providers?: ProviderConfig[];
+  vcr?: VCRConfig;
 }
 
 export type ProviderType = 'openai' | 'anthropic' | 'gemini' | 'ollama';

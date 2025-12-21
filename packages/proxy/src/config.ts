@@ -3,6 +3,7 @@ import { existsSync } from 'fs';
 import { resolve } from 'path';
 import { parse } from 'yaml';
 import type { Config } from '@traceforge/shared';
+import { getDefaultVCRConfig } from './vcr';
 
 const DEFAULT_CONFIG: Config = {
   upstream_url: 'https://api.openai.com',
@@ -37,17 +38,25 @@ export async function loadConfig(): Promise<Config> {
       const content = await readFile(CONFIG_PATH, 'utf-8');
       const userConfig = parse(content);
       const loadedConfig = { ...DEFAULT_CONFIG, ...userConfig };
+      
+      // Add VCR config from environment variables or config file
+      if (!loadedConfig.vcr) {
+        loadedConfig.vcr = getDefaultVCRConfig();
+      }
+      
       cachedConfig = loadedConfig;
       return loadedConfig;
     } catch (error) {
       console.warn('Failed to load config, using defaults:', error);
-      cachedConfig = DEFAULT_CONFIG;
-      return DEFAULT_CONFIG;
+      const defaultWithVCR = { ...DEFAULT_CONFIG, vcr: getDefaultVCRConfig() };
+      cachedConfig = defaultWithVCR;
+      return defaultWithVCR;
     }
   }
 
-  cachedConfig = DEFAULT_CONFIG;
-  return DEFAULT_CONFIG;
+  const defaultWithVCR = { ...DEFAULT_CONFIG, vcr: getDefaultVCRConfig() };
+  cachedConfig = defaultWithVCR;
+  return defaultWithVCR;
 }
 
 export function getApiKey(config: Config): string {
