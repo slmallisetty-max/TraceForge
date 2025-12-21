@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **VCR Mode**: Record/replay functionality for deterministic, offline testing
+  - Environment variables: `TRACEFORGE_VCR_MODE`, `TRACEFORGE_VCR_MATCH`, `TRACEFORGE_VCR_DIR`
+  - Four modes: `off`, `record`, `replay`, `auto`
+  - Request matching with fuzzy and exact modes
+  - Cassette management CLI commands: `vcr status`, `vcr list`, `vcr clean`
+  - Integrated into proxy layer for automatic record/replay
+  - Documentation: VCR_MODE_DESIGN.md, VCR_USAGE.md, VCR_QUICK_REFERENCE.md
+- VCR benefits: No API keys needed, zero costs, deterministic tests, offline support
+
 ## [0.1.0] - 2025-12-20
 
 ### Added

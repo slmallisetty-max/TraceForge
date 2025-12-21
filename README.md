@@ -24,6 +24,7 @@ TraceForge.baseline helps developers debug AI applications by:
 - 🔒 **100% local-first** - all data stays on your machine (zero cloud)
 - ⚡ **Auto-refreshing timeline** (5 second intervals)
 - 🌙 **Dark mode UI** built with React + TailwindCSS
+- 🎬 **VCR mode** - record/replay for deterministic, offline, cost-free testing
 
 ## Architecture
 
@@ -98,6 +99,38 @@ docker-compose up
    ```bash
    # Run all tests (parallel by default)
    npx pnpm --filter @traceforge/cli start test run
+
+   # Run with JUnit XML output
+   npx pnpm --filter @traceforge/cli start test run --junit
+
+   # Watch mode
+   npx pnpm --filter @traceforge/cli start test run --watch
+   ```
+
+7. **VCR Mode for deterministic testing:**
+   ```bash
+   # Check VCR status
+   npx pnpm --filter @traceforge/cli start vcr status
+
+   # Record cassettes (capture live API responses)
+   TRACEFORGE_VCR_MODE=record npx pnpm --filter @traceforge/cli start test run
+
+   # Replay from cassettes (no API calls, no API keys needed!)
+   TRACEFORGE_VCR_MODE=replay npx pnpm --filter @traceforge/cli start test run
+
+   # Auto mode (replay if exists, otherwise record)
+   TRACEFORGE_VCR_MODE=auto npx pnpm --filter @traceforge/cli start test run
+
+   # Clean all cassettes
+   npx pnpm --filter @traceforge/cli start vcr clean --yes
+   ```
+
+   **VCR Mode Benefits:**
+   - ✅ Deterministic tests (same response every time)
+   - ✅ No API keys needed in CI
+   - ✅ Zero API costs during testing
+   - ✅ Fast test execution (no network calls)
+   - ✅ Contributor-friendly (works offline)
    
    # Run with specific options
    npx pnpm --filter @traceforge/cli start test run --parallel --concurrency 10
@@ -216,6 +249,7 @@ We welcome contributions! Please see:
 
 - [Getting Started](docs/getting-started.md) - Quick start guide
 - [Architecture (Visual)](docs/architecture-visual.md) - System diagrams and data flow
+- [VCR Mode Design](docs/Design/VCR_MODE_DESIGN.md) - Record/replay for deterministic testing
 - [Trace Format](docs/trace-format.md) - Trace file structure and schema
 - [Baseline Format](docs/baseline-format.md) - Test and assertion format
 - [Implementation Summary](docs/implementation-summary.md) - Recent improvements

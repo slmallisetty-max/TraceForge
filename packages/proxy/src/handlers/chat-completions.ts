@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { LLMRequest, LLMResponse, Trace } from '@traceforge/shared';
 import { loadConfig, getApiKey } from '../config.js';
 import { TraceStorage } from '../storage.js';
+import { VCRLayer } from '../vcr.js';
 
 export async function chatCompletionsHandler(
   request: FastifyRequest<{ Body: LLMRequest }>,
@@ -14,10 +15,44 @@ export async function chatCompletionsHandler(
 
   try {
     const config = await loadConfig();
-    const apiKey = getApiKey(config);
     const llmRequest = request.body;
 
+    // Initialize VCR layer
+    const vcr = config.vcr ? new VCRLayer(config.vcr) : null;
+
+    // Check if we should replay from cassette
+    if (vcr && config.vcr!.mode !== 'off') {
+      const cassette = await vcr.shouldReplay('openai', llmRequest);
+      
+      if (cassette) {
+        const duration = Date.now() - startTime;
+        request.log.info(`VCR replay hit for openai request`);
+
+        // Save trace if enabled
+        if (config.save_traces) {
+          const trace: Trace = {
+            id: traceId,
+            timestamp,
+            endpoint: '/v1/chat/completions (VCR replay)',
+            request: llmRequest,
+            response: cassette.response.body as LLMResponse,
+            metadata: {
+              duration_ms: duration,
+              tokens_used: (cassette.response.body as LLMResponse).usage?.total_tokens,
+              model: (cassette.response.body as LLMResponse).model,
+              status: 'success',
+            },
+          };
+
+          await TraceStorage.saveTrace(trace);
+        }
+
+        return reply.code(cassette.response.status).send(cassette.response.body);
+      }
+    }
+
     // Forward request to upstream provider
+    const apiKey = getApiKey(config);
     const upstreamUrl = `${config.upstream_url}/v1/chat/completions`;
     
     const response = await fetch(upstreamUrl, {
@@ -31,6 +66,18 @@ export async function chatCompletionsHandler(
 
     const llmResponse = await response.json() as LLMResponse;
     const duration = Date.now() - startTime;
+
+    // Record cassette if VCR is enabled
+    if (vcr) {
+      await vcr.record(
+        'openai',
+        llmRequest,
+        response.status,
+        {},
+        llmResponse
+      );
+      request.log.info(`VCR recorded cassette for openai request`);
+    }
 
     // Save trace if enabled
     if (config.save_traces) {
