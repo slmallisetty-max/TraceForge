@@ -58,7 +58,7 @@ Make sure the TraceForge proxy is running before running the demo:
 
 ```bash
 # From the repository root
-cd /home/runner/work/TraceForge.baseline/TraceForge.baseline
+cd ../../
 npx pnpm dev
 ```
 
@@ -117,7 +117,7 @@ Use the TraceForge CLI to list and inspect traces:
 
 ```bash
 # From the repository root
-cd /home/runner/work/TraceForge.baseline/TraceForge.baseline
+cd ../../
 
 # List all traces
 npx @traceforge/cli trace list
