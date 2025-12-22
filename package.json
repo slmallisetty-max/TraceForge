@@ -42,9 +42,6 @@
     "packages/**/*.{js,jsx}": [
       "eslint --fix --max-warnings 0"
     ],
-    "examples/**/*.{js,jsx}": [
-      "eslint --fix --max-warnings 0"
-    ],
     "**/.ai-tests/traces/**": [
       "echo Warning: You are committing trace files. Review for sensitive data! && exit 1"
     ],
