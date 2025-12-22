@@ -198,6 +198,47 @@ Install the TraceForge.baseline extension for an integrated development experien
 
 - 📂 **TreeView panels** for traces and tests
 - ▶️ **Run tests** directly from editor
+- 🔄 **Auto-refresh** on file changes
+- 💡 **YAML snippets** for test authoring
+- 📝 **Test templates** for quick setup
+
+## ⚠️ Storage Limitations & Production Considerations
+
+**Current file-based storage is optimized for:**
+- ✅ Development and testing environments
+- ✅ Single-server deployments
+- ✅ Up to 10,000 traces (approx 500MB)
+- ✅ Teams of 1-10 developers
+
+**For production use at scale, consider:**
+
+### Storage Limits
+- **No automatic rotation**: Directory grows indefinitely without manual cleanup
+- **No indexing**: Listing traces becomes slow with >1000 files (O(n) complexity)
+- **No concurrency control**: Race conditions possible with multiple proxy instances
+- **Disk exhaustion risk**: No built-in monitoring or alerts
+
+### Recommended Actions for Scale
+1. **Monitor disk usage**: Set up alerts when `.ai-tests/traces/` exceeds 1GB
+2. **Implement cleanup**: Use `find` command or cron job to remove old traces:
+   ```bash
+   # Delete traces older than 7 days
+   find .ai-tests/traces/ -name "*.json" -mtime +7 -delete
+   ```
+3. **Configure retention**: Set `MAX_TRACES=10000` environment variable (coming soon)
+4. **Watch metrics**: Monitor `/metrics` endpoint for storage failures
+
+### Future Storage Backends (Roadmap)
+- **SQLite** (planned): Better indexing, ACID guarantees, manageable file size
+- **PostgreSQL** (future): Multi-tenant, horizontal scaling, full-text search
+- **S3/Cloud Storage** (future): Unlimited retention, archival, cost-effective
+
+### Current Safeguards
+- ✅ **Circuit breaker**: Disables trace saving after 10 consecutive failures
+- ✅ **Metrics endpoint**: `/metrics` exposes storage health statistics
+- ✅ **Enhanced health checks**: `/health` monitors disk writability
+
+See [docs/review.md](docs/review.md) for comprehensive architectural analysis.
 - ➕ **Create tests** from traces with one click
 - 🎨 **YAML snippets** for test authoring (type `tf-test`)
 - 🔄 **Auto-refresh** traces and tests every 5 seconds
@@ -247,12 +288,24 @@ We welcome contributions! Please see:
 
 ## Documentation
 
-- [Getting Started](docs/getting-started.md) - Quick start guide
-- [Architecture (Visual)](docs/architecture-visual.md) - System diagrams and data flow
-- [VCR Mode Design](docs/Design/VCR_MODE_DESIGN.md) - Record/replay for deterministic testing
-- [Trace Format](docs/trace-format.md) - Trace file structure and schema
-- [Baseline Format](docs/baseline-format.md) - Test and assertion format
-- [Implementation Summary](docs/implementation-summary.md) - Recent improvements
+### User Guides
+
+- [Getting Started](guides/getting-started.md) - Quick start guide
+- [CLI Reference](guides/cli.md) - Complete command-line documentation
+- [Assertions](guides/assertions.md) - Deep dive on all 8 assertion types
+- [API Reference](guides/API.md) - REST API endpoints
+- [VCR Usage](guides/VCR_USAGE.md) - Record/replay for deterministic testing
+- [VCR Quick Reference](guides/VCR_QUICK_REFERENCE.md) - VCR mode cheat sheet
+- [Environment Variables](guides/ENVIRONMENT_VARIABLES.md) - Configuration options
+
+### Technical Reference
+
+- [Architecture (Visual)](guides/architecture-visual.md) - System diagrams and data flow
+- [VCR Implementation](guides/VCR_IMPLEMENTATION.md) - VCR internals and architecture
+- [VCR Mode Design](guides/design/VCR_MODE_DESIGN.md) - Design decisions and patterns
+- [Trace Format](guides/trace-format.md) - Trace file structure and schema
+- [Baseline Format](guides/baseline-format.md) - Test and assertion format
+- [Migrations](guides/migrations.md) - Schema versioning and migration guide
 
 ## Status
 

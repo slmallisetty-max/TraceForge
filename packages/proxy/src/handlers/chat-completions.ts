@@ -55,19 +55,26 @@ export async function chatCompletionsHandler(
     const apiKey = getApiKey(config);
     const upstreamUrl = `${config.upstream_url}/v1/chat/completions`;
     
-    const response = await fetch(upstreamUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(llmRequest),
-    });
+    // Add 30 second timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    
+    try {
+      const response = await fetch(upstreamUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(llmRequest),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
 
-    const llmResponse = await response.json() as LLMResponse;
-    const duration = Date.now() - startTime;
+      const llmResponse = await response.json() as LLMResponse;
+      const duration = Date.now() - startTime;
 
-    // Record cassette if VCR is enabled
+      // Record cassette if VCR is enabled
     if (vcr) {
       await vcr.record(
         'openai',
@@ -100,7 +107,14 @@ export async function chatCompletionsHandler(
     }
 
     // Return response to client
-    return reply.code(response.status).send(llmResponse);
+      return reply.code(response.status).send(llmResponse);
+    } catch (fetchError: any) {
+      clearTimeout(timeout);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Request timeout: upstream provider took longer than 30 seconds');
+      }
+      throw fetchError;
+    }
   } catch (error: any) {
     const duration = Date.now() - startTime;
     

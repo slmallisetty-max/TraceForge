@@ -1,4 +1,4 @@
-import { readFile, mkdir } from 'fs/promises';
+import { readFile, mkdir, watch as fsWatch } from 'fs/promises';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import { parse } from 'yaml';
@@ -13,19 +13,78 @@ const DEFAULT_CONFIG: Config = {
   web_port: 3001,
 };
 
-const CONFIG_PATH = resolve(process.cwd(), '.ai-tests/config.yaml');
+// Allow custom config directory via environment variable
+const CONFIG_DIR = process.env.TRACEFORGE_CONFIG_DIR || '.ai-tests';
+const CONFIG_PATH = resolve(process.cwd(), `${CONFIG_DIR}/config.yaml`);
 
-// Cache the loaded config
+// Cache the loaded config with TTL
 let cachedConfig: Config | null = null;
+let cacheTimestamp: number = 0;
+const CACHE_TTL_MS = 60000; // 1 minute cache TTL
+
+// File watcher for automatic cache invalidation
+let configWatcherController: AbortController | null = null;
+
+/**
+ * Start watching config file for changes
+ */
+export async function startConfigWatcher(): Promise<void> {
+  if (!existsSync(CONFIG_PATH)) {
+    return; // No config file to watch yet
+  }
+
+  try {
+    configWatcherController = new AbortController();
+    const watcher = fsWatch(CONFIG_PATH, { signal: configWatcherController.signal });
+
+    // Process file changes asynchronously
+    (async () => {
+      try {
+        for await (const event of watcher) {
+          if (event.eventType === 'change') {
+            clearConfigCache();
+            console.log('[CONFIG] Configuration file changed, cache invalidated');
+          }
+        }
+      } catch (error: any) {
+        // Watcher closed or errored, this is normal during shutdown
+        if (error.name !== 'AbortError') {
+          console.warn('[CONFIG] Config watcher error:', error.message);
+        }
+      }
+    })();
+  } catch (error) {
+    console.warn('[CONFIG] Failed to start config file watcher:', error);
+  }
+}
+
+/**
+ * Stop watching config file
+ */
+export async function stopConfigWatcher(): Promise<void> {
+  if (configWatcherController) {
+    configWatcherController.abort();
+    configWatcherController = null;
+  }
+}
+
+/**
+ * Clear the config cache (useful for testing or runtime config updates)
+ */
+export function clearConfigCache(): void {
+  cachedConfig = null;
+  cacheTimestamp = 0;
+}
 
 export async function loadConfig(): Promise<Config> {
-  // Return cached config if already loaded
-  if (cachedConfig !== null) {
+  // Return cached config if within TTL
+  const now = Date.now();
+  if (cachedConfig !== null && (now - cacheTimestamp) < CACHE_TTL_MS) {
     return cachedConfig;
   }
 
   // Create .ai-tests directory if it doesn't exist
-  const aiTestsDir = resolve(process.cwd(), '.ai-tests');
+  const aiTestsDir = resolve(process.cwd(), CONFIG_DIR);
   if (!existsSync(aiTestsDir)) {
     await mkdir(aiTestsDir, { recursive: true });
     await mkdir(resolve(aiTestsDir, 'traces'), { recursive: true });
@@ -45,17 +104,20 @@ export async function loadConfig(): Promise<Config> {
       }
       
       cachedConfig = loadedConfig;
+      cacheTimestamp = now;
       return loadedConfig;
     } catch (error) {
       console.warn('Failed to load config, using defaults:', error);
       const defaultWithVCR = { ...DEFAULT_CONFIG, vcr: getDefaultVCRConfig() };
       cachedConfig = defaultWithVCR;
+      cacheTimestamp = now;
       return defaultWithVCR;
     }
   }
 
   const defaultWithVCR = { ...DEFAULT_CONFIG, vcr: getDefaultVCRConfig() };
   cachedConfig = defaultWithVCR;
+  cacheTimestamp = now;
   return defaultWithVCR;
 }
 

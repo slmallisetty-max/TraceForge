@@ -13,14 +13,18 @@ export async function ollamaHandler(
   const body = request.body as LLMRequest;
 
   try {
-    // Ollama uses OpenAI-compatible API
+    // Ollama uses OpenAI-compatible API with 30s timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    
     const response = await fetch(`${providerConfig.base_url}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
 
     const ollamaResponse = await response.json() as LLMResponse;
     const duration = Date.now() - startTime;

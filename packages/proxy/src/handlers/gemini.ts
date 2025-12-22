@@ -41,7 +41,10 @@ export async function geminiHandler(
   const body = request.body as GeminiRequest;
 
   try {
-    // Call Gemini API
+    // Call Gemini API with 30s timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    
     const response = await fetch(
       `${providerConfig.base_url}/v1beta/models/${providerConfig.model}:generateContent?key=${providerConfig.api_key}`,
       {
@@ -50,8 +53,9 @@ export async function geminiHandler(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
+        signal: controller.signal,
       }
-    );
+    ).finally(() => clearTimeout(timeout));
 
     const geminiResponse = await response.json() as GeminiResponse;
     const duration = Date.now() - startTime;

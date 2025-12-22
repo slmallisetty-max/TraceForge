@@ -29,6 +29,9 @@ logs/
 # AI Tests (local traces)
 .ai-tests/
 
+# Internal documentation (reviews, implementation notes)
+docs/
+
 # Trace files (may contain sensitive data)
 **/traces/
 **/trace-*.json

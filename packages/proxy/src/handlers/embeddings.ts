@@ -1,8 +1,10 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
 import type { EmbeddingRequest, EmbeddingResponse, Trace } from '@traceforge/shared';
+import { EmbeddingRequestSchema } from '@traceforge/shared';
 import { loadConfig, getApiKey } from '../config.js';
 import { TraceStorage } from '../storage.js';
+import { ZodError } from 'zod';
 
 export async function embeddingsHandler(
   request: FastifyRequest<{ Body: EmbeddingRequest }>,
@@ -15,10 +17,14 @@ export async function embeddingsHandler(
   try {
     const config = await loadConfig();
     const apiKey = getApiKey(config);
-    const embeddingRequest = request.body;
+    
+    // Validate request body
+    const embeddingRequest = EmbeddingRequestSchema.parse(request.body);
 
-    // Forward request to upstream provider
+    // Forward request to upstream provider with 30s timeout
     const upstreamUrl = `${config.upstream_url}/v1/embeddings`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
     
     const response = await fetch(upstreamUrl, {
       method: 'POST',
@@ -27,7 +33,8 @@ export async function embeddingsHandler(
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify(embeddingRequest),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
 
     const embeddingResponse = await response.json() as EmbeddingResponse;
     const duration = Date.now() - startTime;
@@ -56,6 +63,17 @@ export async function embeddingsHandler(
     return reply.code(response.status).send(embeddingResponse);
   } catch (error: any) {
     const duration = Date.now() - startTime;
+    
+    // Handle validation errors
+    if (error instanceof ZodError) {
+      return reply.code(400).send({
+        error: {
+          message: 'Invalid request body',
+          type: 'invalid_request_error',
+          details: error.errors,
+        },
+      });
+    }
     
     // Save error trace
     const config = await loadConfig();
