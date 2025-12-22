@@ -144,7 +144,7 @@ We recognize security researchers who help keep TraceForge.baseline secure:
 
 For non-security questions, use GitHub Issues or Discussions.
 
-For security concerns, email: [INSERT_SECURITY_EMAIL@example.com]
+For security concerns, email: security@traceforge.dev
 
 ---
 
