@@ -41,6 +41,15 @@ Add screenshots for UI changes.
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
 - [ ] Any dependent changes have been merged and published
+- [ ] I have run `pnpm lint` and fixed all issues
+- [ ] I have run `pnpm typecheck` with no errors
+
+## Security Checklist (if applicable)
+- [ ] No sensitive data (API keys, passwords) is hardcoded or logged
+- [ ] Input validation is implemented for user-facing APIs
+- [ ] Rate limiting is considered for new endpoints
+- [ ] Redaction patterns are tested for sensitive data
+- [ ] No cassettes with real API keys are committed
 
 ## Breaking Changes
 If this PR introduces breaking changes, describe them here and provide migration guidance.

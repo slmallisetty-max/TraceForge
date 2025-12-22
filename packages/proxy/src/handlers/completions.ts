@@ -1,8 +1,10 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
 import type { LLMRequest, LLMResponse, Trace } from '@traceforge/shared';
+import { LLMRequestSchema } from '@traceforge/shared';
 import { loadConfig, getApiKey } from '../config.js';
 import { TraceStorage } from '../storage.js';
+import { ZodError } from 'zod';
 
 export async function completionsHandler(
   request: FastifyRequest<{ Body: LLMRequest }>,
@@ -15,10 +17,14 @@ export async function completionsHandler(
   try {
     const config = await loadConfig();
     const apiKey = getApiKey(config);
-    const llmRequest = request.body;
+    
+    // Validate request body
+    const llmRequest = LLMRequestSchema.parse(request.body);
 
-    // Forward request to upstream provider
+    // Forward request to upstream provider with 30s timeout
     const upstreamUrl = `${config.upstream_url}/v1/completions`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
     
     const response = await fetch(upstreamUrl, {
       method: 'POST',
@@ -27,7 +33,8 @@ export async function completionsHandler(
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify(llmRequest),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
 
     const llmResponse = await response.json() as LLMResponse;
     const duration = Date.now() - startTime;
@@ -56,6 +63,17 @@ export async function completionsHandler(
     return reply.code(response.status).send(llmResponse);
   } catch (error: any) {
     const duration = Date.now() - startTime;
+    
+    // Handle validation errors
+    if (error instanceof ZodError) {
+      return reply.code(400).send({
+        error: {
+          message: 'Invalid request body',
+          type: 'invalid_request_error',
+          details: error.errors,
+        },
+      });
+    }
     
     // Save error trace
     const config = await loadConfig();

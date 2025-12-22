@@ -7,6 +7,25 @@ import { TraceStorage } from '../storage.js';
 // Limit chunks to prevent OOM (10000 chunks ~= 1-2MB depending on content)
 const MAX_CHUNKS = 10000;
 
+/**
+ * NOTE: VCR Mode Limitation
+ * 
+ * Streaming responses are NOT currently supported in VCR mode.
+ * This handler always forwards requests to the upstream provider.
+ * 
+ * Reasons:
+ * 1. Cassette storage for streaming is complex (need to store chunks + timing)
+ * 2. Replaying streams with accurate timing is non-trivial
+ * 3. Most testing use cases work better with non-streaming requests
+ * 
+ * Workaround: Set `stream: false` in your test requests to enable VCR replay.
+ * 
+ * TODO: Add VCR support for streaming if needed. Approach:
+ * - Store chunks array + timing in cassette
+ * - Replay chunks with simulated delays (delta_ms)
+ * - Handle [DONE] marker correctly
+ */
+
 interface StreamingChatCompletionsRequest extends FastifyRequest {
   body: LLMRequest;
 }

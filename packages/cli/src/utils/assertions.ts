@@ -50,7 +50,34 @@ function getValueAtPath(obj: any, path: string): any {
 
 /**
  * Calculate string similarity (Dice coefficient)
- * Returns value between 0 and 1
+ * 
+ * ⚠️ LIMITATION: Simple lexical similarity only!
+ * 
+ * This function uses the Dice coefficient (bigram-based) to measure
+ * string similarity. It works well for:
+ * - Detecting typos and minor variations
+ * - Comparing structured text
+ * - Fast approximate matching
+ * 
+ * It does NOT work well for:
+ * - Semantic similarity ("car" vs "automobile")
+ * - Different phrasings of the same meaning
+ * - Translations or paraphrases
+ * - Long texts with different word order
+ * 
+ * For semantic similarity, consider:
+ * 1. Using embedding-based similarity (cosine distance of vectors)
+ * 2. LLM-based semantic comparison
+ * 3. Domain-specific similarity metrics
+ * 
+ * Alternative algorithms:
+ * - Levenshtein distance: character-level edits
+ * - Jaro-Winkler: better for short strings
+ * - Cosine similarity: semantic/vector-based
+ * 
+ * @param str1 - First string
+ * @param str2 - Second string
+ * @returns Similarity score between 0 and 1
  */
 function calculateSimilarity(str1: string, str2: string): number {
   if (str1 === str2) return 1.0;
@@ -82,7 +109,24 @@ function calculateSimilarity(str1: string, str2: string): number {
 
 /**
  * Estimate token count (rough approximation)
- * Real tokenization requires model-specific tokenizer
+ * 
+ * ⚠️ LIMITATION: This is a rough estimate only!
+ * 
+ * This function provides a simple heuristic for token counting based on
+ * word and character counts. It does NOT use model-specific tokenization.
+ * 
+ * Actual token counts may vary significantly depending on:
+ * - The specific model (GPT-3.5, GPT-4, Claude, etc.)
+ * - Language and character set (non-English text)
+ * - Special tokens and formatting
+ * 
+ * For accurate token counts:
+ * 1. Use the `usage` field from API responses (when available)
+ * 2. Integrate a proper tokenizer library like `tiktoken` for OpenAI models
+ * 3. Allow ±20% margin in token_count assertions to account for estimation error
+ * 
+ * @param text - The text to estimate token count for
+ * @returns Estimated token count (±20% accuracy)
  */
 function estimateTokenCount(text: string): number {
   // Rough estimate: ~1 token per 4 characters for English

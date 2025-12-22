@@ -35,7 +35,10 @@ export async function anthropicHandler(
   const body = request.body as AnthropicRequest;
 
   try {
-    // Call Anthropic API
+    // Call Anthropic API with 30s timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    
     const response = await fetch(`${providerConfig.base_url}/v1/messages`, {
       method: 'POST',
       headers: {
@@ -44,7 +47,8 @@ export async function anthropicHandler(
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify(body),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
 
     const anthropicResponse = await response.json() as AnthropicResponse;
     const duration = Date.now() - startTime;

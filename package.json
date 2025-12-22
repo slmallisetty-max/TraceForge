@@ -16,8 +16,10 @@
     "dev": "concurrently -n proxy,web -c cyan,magenta \"pnpm --filter @traceforge/proxy dev\" \"pnpm --filter @traceforge/web dev\"",
     "start": "concurrently -n proxy,web -c cyan,magenta \"pnpm --filter @traceforge/proxy start\" \"pnpm --filter @traceforge/web start\"",
     "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:coverage": "pnpm -r test -- --coverage",
     "test:demo": "node examples/demo-app/index.js",
-    "test:integration": "powershell -File test-integration.ps1",
+    "test:integration": "node test-integration.js",
     "clean": "pnpm -r clean",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
@@ -34,8 +36,14 @@
     "typescript": "^5.3.0"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
-      "echo 'Linting files...'"
+    "*.{ts,tsx}": [
+      "eslint --fix --max-warnings 0"
+    ],
+    "packages/**/*.{js,jsx}": [
+      "eslint --fix --max-warnings 0"
+    ],
+    "examples/**/*.{js,jsx}": [
+      "eslint --fix --max-warnings 0"
     ],
     "**/.ai-tests/traces/**": [
       "echo Warning: You are committing trace files. Review for sensitive data! && exit 1"
