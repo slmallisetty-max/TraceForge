@@ -17,6 +17,5 @@
     "regression-testing",
     "ai-testing",
     "vcr"
-  ],
-  "license": "Apache-2.0"
+  ]
 }

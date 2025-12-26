@@ -247,7 +247,3 @@ git commit -m "Add test cassettes"
 - Read the [VCR Usage Guide](../../guides/VCR_USAGE.md)
 - Explore [Assertion Patterns](../../guides/assertions.md)
 - Set up [CI Integration](../../guides/getting-started.md#ci-integration)
-
-## 📝 License
-
-Apache-2.0
