@@ -214,19 +214,6 @@ Can't find what you're looking for?
 
 1. Check [Getting Started](./getting-started.md) for basics
 2. Search this documentation (Ctrl+F in browser)
-3. See [SUPPORT.md](../SUPPORT.md) for community help
-4. Report issues on GitHub
-
----
-
-## 🤝 Contributing
-
-Want to improve this documentation?
-
-1. Read [CONTRIBUTING.md](../CONTRIBUTING.md)
-2. Documentation lives in `guides/` folder
-3. Use Markdown with clear headers
-4. Include code examples
 
 ---
 

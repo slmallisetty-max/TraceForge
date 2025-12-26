@@ -5,7 +5,6 @@
 [![Status](https://img.shields.io/badge/status-V2%20Complete-brightgreen)]()
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)]()
-[![License](https://img.shields.io/badge/license-Apache%202.0-green)]()
 
 ## Overview
 
@@ -269,22 +268,6 @@ response = openai.ChatCompletion.create(
     messages=[{"role": "user", "content": "Hello!"}]
 )
 ```
-
-## License
-
-Apache 2.0
-
-## Community & Support
-
-- [SUPPORT.md](SUPPORT.md) - How to get help
-- [CHANGELOG.md](CHANGELOG.md) - Version history
-- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) - Community standards
-
-## Contributing
-
-We welcome contributions! Please see:
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
-- [SECURITY.md](SECURITY.md) - Security policy and best practices
 
 ## Documentation
 
