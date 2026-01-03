@@ -6,3 +6,6 @@ export * from './risk-scoring.js';
 export * from './policies.js';
 export * from './policy-templates.js';
 export * from './ci-gating.js';
+export * from './storage-backend.js';
+export * from './embeddings.js';
+export * from './embedding-cache.js';

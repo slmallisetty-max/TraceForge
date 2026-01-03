@@ -1,2 +1,7 @@
 #!/bin/sh
-npx --no-install lint-staged
+# Check if running on Windows
+if [ -f ".husky/pre-commit.bat" ] && command -v cmd.exe >/dev/null 2>&1; then
+  cmd.exe /c .husky\\pre-commit.bat
+else
+  npx --no-install lint-staged
+fi

@@ -8,6 +8,7 @@ import { parse, stringify } from 'yaml';
 import type { Trace, Config, Test } from '@traceforge/shared';
 import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
+import { registerAuth, loadAuthConfig } from './auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -52,6 +53,10 @@ await fastify.register(cors, {
   origin: isDevelopment ? 'http://localhost:5173' : true,
 });
 
+// Register authentication
+const authConfig = loadAuthConfig();
+await registerAuth(fastify, authConfig);
+
 // Health check endpoint
 fastify.get('/api/health', async () => {
   return {
@@ -61,6 +66,29 @@ fastify.get('/api/health', async () => {
     environment: process.env.NODE_ENV || 'development',
   };
 });
+
+// POST /api/auth/login - Generate JWT token
+fastify.post<{ Body: { username: string; password: string } }>(
+  '/api/auth/login',
+  async (request, reply) => {
+    const { username, password } = request.body;
+
+    // Simple validation (replace with real auth in production)
+    const validUser = process.env.TRACEFORGE_USERNAME || 'admin';
+    const validPass = process.env.TRACEFORGE_PASSWORD || 'changeme';
+
+    if (username === validUser && password === validPass) {
+      const token = fastify.jwt.sign(
+        { sub: username, role: 'admin' },
+        { expiresIn: '24h' }
+      );
+
+      return { token, expiresIn: '24h' };
+    }
+
+    return reply.code(401).send({ error: 'Invalid credentials' });
+  }
+);
 
 // API Routes
 

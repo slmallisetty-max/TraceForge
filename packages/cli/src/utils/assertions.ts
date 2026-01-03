@@ -1,6 +1,5 @@
 import type { Assertion, AssertionResult, LLMResponse, TraceMetadata } from '@traceforge/shared';
-import { getDefaultEmbeddingService, cosineSimilarity } from '../../../proxy/src/embeddings.js';
-import type { EmbeddingService } from '../../../proxy/src/embeddings.js';
+import { getDefaultEmbeddingService, cosineSimilarity } from '@traceforge/shared';
 
 /**
  * Extract text content from LLM response

@@ -15,6 +15,8 @@ import { LLMRequestSchema } from '@traceforge/shared';
 import { ZodError } from 'zod';
 import { storageCircuitBreaker } from './storage-metrics.js';
 import { access, constants } from 'fs/promises';
+import { RetentionManager, loadRetentionPolicy } from './retention.js';
+import { createStorageBackend } from './storage-factory.js';
 
 // Load environment variables
 config();
@@ -79,6 +81,17 @@ await fastify.register(rateLimit, {
 // Load configuration
 const appConfig = await loadConfig();
 
+// Create storage backend (file or SQLite based on environment)
+const storage = createStorageBackend();
+
+// Initialize retention manager
+const retentionPolicy = loadRetentionPolicy();
+const retentionManager = new RetentionManager(
+  storage,
+  retentionPolicy,
+  fastify.log
+);
+
 // Enhanced health check endpoint with dependency checks
 fastify.get('/health', async (_request, reply) => {
   const checks: Record<string, { status: 'ok' | 'degraded' | 'error'; message?: string }> = {
@@ -141,6 +154,7 @@ fastify.get('/health', async (_request, reply) => {
 // Metrics endpoint for monitoring
 fastify.get('/metrics', async () => {
   const storageMetrics = storageCircuitBreaker.getMetrics();
+  const traceCount = await storage.countTraces();
   
   return {
     storage: {
@@ -149,6 +163,9 @@ fastify.get('/metrics', async () => {
       consecutive_failures: storageMetrics.consecutiveFailures,
       circuit_open: storageMetrics.circuitOpen,
       success_rate_percent: storageCircuitBreaker.getSuccessRate().toFixed(2),
+      traces_count: traceCount,
+      retention_policy: retentionPolicy,
+      backend: process.env.TRACEFORGE_STORAGE_BACKEND || 'file',
     },
     uptime_seconds: Math.floor(process.uptime()),
     memory_usage_mb: {
@@ -231,6 +248,9 @@ const start = async () => {
     // Start config file watcher for automatic cache invalidation
     await startConfigWatcher();
     
+    // Start retention manager
+    retentionManager.start();
+    
     fastify.log.info({ port, tracesDir: '.ai-tests/traces/' }, 'TraceForge Proxy started');
     
     // Show configured providers
@@ -256,6 +276,8 @@ const start = async () => {
 const shutdown = async (signal: string) => {
   fastify.log.info({ signal }, 'Shutdown signal received, closing gracefully...');
   try {
+    retentionManager.stop();
+    await storage.close();
     await stopConfigWatcher();
     await fastify.close();
     fastify.log.info('Server closed successfully');

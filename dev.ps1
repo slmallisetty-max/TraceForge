@@ -19,7 +19,7 @@ if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
 # Check for API keys
 if (-not $env:OPENAI_API_KEY) {
     Write-Host "⚠️  OPENAI_API_KEY not set. Set it in .env or environment." -ForegroundColor Yellow
-    Write-Host '   Example: $env:OPENAI_API_KEY="sk-..."' -ForegroundColor Gray
+    Write-Host '   Example: Set OPENAI_API_KEY environment variable' -ForegroundColor Gray
 }
 
 # Check if dependencies are installed
@@ -46,9 +46,9 @@ Write-Host ""
 Write-Host "✅ Prerequisites checked" -ForegroundColor Green
 Write-Host ""
 Write-Host "Starting services..." -ForegroundColor Cyan
-Write-Host "  🔵 Proxy: http://localhost:8787" -ForegroundColor Blue
-Write-Host "  🟣 API:   http://localhost:3001/api" -ForegroundColor Magenta
-Write-Host "  🟢 UI:    http://localhost:5173" -ForegroundColor Green
+Write-Host "  Proxy: http://localhost:8787" -ForegroundColor Blue
+Write-Host "  API:   http://localhost:3001/api" -ForegroundColor Magenta
+Write-Host "  UI:    http://localhost:5173" -ForegroundColor Green
 Write-Host ""
 Write-Host "Press Ctrl+C to stop all services" -ForegroundColor Gray
 Write-Host ""

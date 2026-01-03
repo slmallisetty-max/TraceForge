@@ -1,4 +1,4 @@
-import type { EmbeddingRequest, EmbeddingResponse } from '@traceforge/shared';
+import type { EmbeddingResponse } from '@traceforge/shared';
 import { createHash } from 'crypto';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { resolve } from 'path';
