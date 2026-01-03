@@ -11,6 +11,14 @@ import type { Trace, Test, TestResult } from '@traceforge/shared';
 import { evaluateAssertions } from '../utils/assertions.js';
 import { writeJUnitReport } from '../utils/junit-reporter.js';
 import { ProgressReporter } from '../utils/progress-reporter.js';
+import {
+  evaluatePolicy,
+  getPolicyTemplate,
+  evaluateQualityGates,
+  formatGateSummary,
+  generateBadge,
+  getExitCode,
+} from '@traceforge/shared';
 
 const execAsync = promisify(exec);
 
@@ -65,6 +73,12 @@ testCommand
   .option('--watch', 'Watch mode - rerun on file changes')
   .option('--tag <tags...>', 'Run tests with specific tags')
   .option('--no-progress', 'Disable progress bar')
+  .option('--with-policy', 'Enable policy evaluation for tests')
+  .option('--ci', 'Enable CI mode with quality gates')
+  .option('--min-pass-rate <number>', 'Minimum pass rate % for CI (default: 90)', '90')
+  .option('--max-risk-severity <number>', 'Maximum risk severity for CI (default: 8)', '8')
+  .option('--badge <path>', 'Generate status badge (default: .ai-tests/badge.svg)')
+  .option('--summary <path>', 'Generate test summary (default: .ai-tests/summary.md)')
   .action(async (file?: string, options?: any) => {
     const runTests = async () => {
       try {
@@ -110,19 +124,55 @@ testCommand
 
         if (useParallel) {
           const concurrency = parseInt(options.concurrency, 10);
-          results = await runTestsParallel(tests, concurrency, options.progress !== false);
+          results = await runTestsParallel(tests, concurrency, options.progress !== false, options.withPolicy);
         } else {
-          results = await runTestsSequential(tests, options.progress !== false);
+          results = await runTestsSequential(tests, options.progress !== false, options.withPolicy);
         }
 
         // Summary
         const passed = results.filter(r => r.passed).length;
         const failed = results.length - passed;
 
+        // CI Mode: Evaluate quality gates
+        let gateResult;
+        if (options.ci) {
+          gateResult = evaluateQualityGates(results, {
+            enabled: true,
+            fail_on_test_failure: true,
+            fail_on_policy_violations: options.withPolicy !== false,
+            fail_on_risk_threshold: true,
+            max_risk_severity: parseInt(options.maxRiskSeverity || '8', 10),
+            min_pass_rate: parseInt(options.minPassRate || '90', 10),
+            require_baselines: false,
+          });
+
+          // Print quality gate result
+          console.log(chalk.bold('\n=== Quality Gates ==='));
+          if (gateResult.passed) {
+            console.log(chalk.green.bold('✅ ALL GATES PASSED'));
+          } else {
+            console.log(chalk.red.bold('❌ GATES FAILED'));
+            console.log(chalk.red(`\n${gateResult.gate_failures.length} gate${gateResult.gate_failures.length === 1 ? '' : 's'} failed:`));
+            for (const failure of gateResult.gate_failures) {
+              const emoji = failure.severity === 'critical' ? '🔴' :
+                           failure.severity === 'high' ? '🟠' :
+                           failure.severity === 'medium' ? '🟡' : '⚪';
+              console.log(`  ${emoji} ${failure.gate}: ${failure.reason}`);
+            }
+          }
+        }
+
         console.log(chalk.bold('\n=== Summary ==='));
         console.log(`Total: ${results.length}`);
         console.log(chalk.green(`✓ Passed: ${passed}`));
         console.log(chalk.red(`✗ Failed: ${failed}`));
+        
+        if (gateResult) {
+          console.log(chalk.cyan(`Pass Rate: ${gateResult.pass_rate.toFixed(1)}%`));
+          if (gateResult.policy_violations_count > 0) {
+            console.log(chalk.yellow(`Policy Violations: ${gateResult.policy_violations_count}`));
+          }
+        }
 
         // Detailed failures
         if (failed > 0) {
@@ -136,6 +186,18 @@ testCommand
               if (result.error) {
                 console.log(chalk.red(`  Error: ${result.error}`));
               } else {
+                // Show policy violations first
+                if (result.policy_violations && result.policy_violations.length > 0) {
+                  console.log(chalk.red(`  Policy Violations:`));
+                  for (const violation of result.policy_violations) {
+                    const severityColor = violation.severity === 'critical' ? chalk.red :
+                                         violation.severity === 'high' ? chalk.yellow :
+                                         chalk.gray;
+                    console.log(severityColor(`    [${violation.severity.toUpperCase()}] ${violation.message}`));
+                  }
+                }
+                
+                // Show assertion failures
                 for (const assertion of result.assertions) {
                   if (!assertion.passed) {
                     const message = assertion.message || assertion.error || 'Assertion failed';
@@ -158,8 +220,28 @@ testCommand
           console.log(chalk.gray(`\n✓ JUnit report written to: ${options.junit}`));
         }
 
+        // CI Mode: Generate badge and summary
+        if (options.ci && gateResult) {
+          // Generate badge
+          const badgePath = options.badge || resolve(process.cwd(), '.ai-tests/badge.svg');
+          const badge = generateBadge(gateResult);
+          await writeFile(badgePath, badge, 'utf-8');
+          console.log(chalk.gray(`✓ Badge generated: ${badgePath}`));
+
+          // Generate summary
+          const summaryPath = options.summary || resolve(process.cwd(), '.ai-tests/summary.md');
+          const summary = formatGateSummary(gateResult);
+          await writeFile(summaryPath, summary, 'utf-8');
+          console.log(chalk.gray(`✓ Summary generated: ${summaryPath}`));
+        }
+
         if (!options.watch) {
-          process.exit(failed > 0 ? 1 : 0);
+          // CI Mode: Use quality gate exit code
+          if (options.ci && gateResult) {
+            process.exit(getExitCode(gateResult));
+          } else {
+            process.exit(failed > 0 ? 1 : 0);
+          }
         }
       } catch (error: any) {
         console.error(chalk.red('Error running tests:'), error.message);
@@ -246,7 +328,8 @@ testCommand
 async function runTestsParallel(
   tests: Array<{ file: string; test: Test }>,
   concurrency: number,
-  showProgress: boolean
+  showProgress: boolean,
+  withPolicy: boolean = false
 ): Promise<TestResult[]> {
   const results: TestResult[] = [];
   const progress = showProgress ? new ProgressReporter(tests.length) : null;
@@ -257,7 +340,7 @@ async function runTestsParallel(
     const batchResults = await Promise.all(
       batch.map(async ({ test }) => {
         progress?.start(test.name);
-        const result = await runTest(test);
+        const result = await runTest(test, withPolicy);
         progress?.complete(test.name, result.passed);
         return result;
       })
@@ -272,14 +355,15 @@ async function runTestsParallel(
 // Run tests sequentially
 async function runTestsSequential(
   tests: Array<{ file: string; test: Test }>,
-  showProgress: boolean
+  showProgress: boolean,
+  withPolicy: boolean = false
 ): Promise<TestResult[]> {
   const results: TestResult[] = [];
   const progress = showProgress ? new ProgressReporter(tests.length) : null;
 
   for (const { test } of tests) {
     progress?.start(test.name);
-    const result = await runTest(test);
+    const result = await runTest(test, withPolicy);
     progress?.complete(test.name, result.passed);
     results.push(result);
   }
@@ -305,7 +389,7 @@ async function runFixtures(
 }
 
 // Run a single test
-async function runTest(test: Test): Promise<TestResult> {
+async function runTest(test: Test, withPolicy: boolean = false): Promise<TestResult> {
   const startTime = Date.now();
 
   try {
@@ -335,6 +419,30 @@ async function runTest(test: Test): Promise<TestResult> {
       const llmResponse = await response.json() as any;
       const duration = Date.now() - startTime;
 
+      // Extract response content for policy evaluation
+      const responseContent = llmResponse?.choices?.[0]?.message?.content || '';
+
+      // Evaluate policies if enabled
+      let policyViolations: any[] = [];
+      let policyPassed = true;
+      
+      if (withPolicy && test.policy_contracts && test.policy_contracts.length > 0) {
+        for (const policyId of test.policy_contracts) {
+          try {
+            const policy = getPolicyTemplate(policyId);
+            if (policy) {
+              const result = await evaluatePolicy(responseContent, policy);
+              if (!result.passed) {
+                policyPassed = false;
+                policyViolations.push(...result.violations);
+              }
+            }
+          } catch (error: any) {
+            console.warn(chalk.yellow(`Warning: Could not load policy ${policyId}: ${error.message}`));
+          }
+        }
+      }
+
       // Prepare metadata for assertions
       const metadata = {
         duration_ms: duration,
@@ -344,20 +452,20 @@ async function runTest(test: Test): Promise<TestResult> {
       };
 
       // Run assertions using new validator
-      const assertionResults = evaluateAssertions(
+      const assertionResults = await evaluateAssertions(
         test.assertions,
         llmResponse,
         metadata
       );
       
-      const allPassed = assertionResults.every(r => r.passed);
+      const allPassed = assertionResults.every(r => r.passed) && policyPassed;
 
       // Run teardown fixtures
       if (test.fixtures?.teardown) {
         await runFixtures(test.fixtures.teardown, test.fixtures.env);
       }
 
-      return {
+      const result: TestResult = {
         test_id: test.id,
         passed: allPassed,
         assertions: assertionResults,
@@ -365,6 +473,13 @@ async function runTest(test: Test): Promise<TestResult> {
         duration_ms: duration,
         timestamp: new Date().toISOString(),
       };
+      
+      // Add policy violations if they exist
+      if (policyViolations.length > 0) {
+        result.policy_violations = policyViolations;
+      }
+      
+      return result;
     } catch (error: any) {
       clearTimeout(timeoutId);
       

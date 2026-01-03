@@ -75,6 +75,7 @@ export interface Test {
   fixtures?: TestFixtures;
   tags?: string[];
   timeout?: number;  // Test timeout in milliseconds
+  policy_contracts?: string[];  // Policy IDs to enforce
 }
 
 export interface TestFixtures {
@@ -91,7 +92,12 @@ export type AssertionType =
   | 'json_path'
   | 'fuzzy_match'
   | 'token_count'
-  | 'latency';
+  | 'latency'
+  // Semantic assertions (2026 Q1)
+  | 'semantic'
+  | 'semantic-contradiction'
+  | 'semantic-intent'
+  | 'policy';
 
 export interface Assertion {
   type: AssertionType;
@@ -99,10 +105,23 @@ export interface Assertion {
   value?: any;          // Expected value for exact, contains, json_path
   pattern?: string;     // Regex pattern for regex type
   path?: string;        // JSONPath expression for json_path type
-  threshold?: number;   // Similarity threshold for fuzzy_match (0-1)
+  threshold?: number;   // Similarity threshold for fuzzy_match (0-1) or semantic (0-1)
   min?: number;         // Minimum value for token_count or latency
   max?: number;         // Maximum value for token_count or latency
   description?: string; // Human-readable description
+  
+  // Semantic assertion fields (2026 Q1)
+  expected?: string;                    // Expected text (for semantic)
+  forbidden?: string[];                 // Forbidden meanings (for semantic-contradiction)
+  expected_intent?: string;             // Expected intent label (for semantic-intent)
+  confidence_threshold?: number;        // Confidence minimum (0-1)
+  embedding_model?: string;             // Override embedding model
+  use_cache?: boolean;                  // Use cached embeddings (default: true)
+  
+  // Policy assertion fields (2026 Q1)
+  policies?: string[];                  // Policy names to enforce
+  fail_on_severity?: 'low' | 'medium' | 'high' | 'critical';  // Minimum severity to fail
+  tags?: string[];                      // Tags for policy matching
 }
 
 export interface TestResult {
@@ -113,6 +132,7 @@ export interface TestResult {
   error?: string;
   duration_ms: number;
   timestamp: string;
+  policy_violations?: any[];  // Policy violations if policies enabled
 }
 
 export interface AssertionResult {
@@ -122,6 +142,29 @@ export interface AssertionResult {
   expected?: any;
   message?: string;
   error?: string;
+}
+
+// CI Gating types (2026 Q1)
+export interface QualityGateResult {
+  passed: boolean;                      // Overall gate pass/fail
+  test_results: TestResult[];           // All test results
+  total_tests: number;
+  passed_tests: number;
+  failed_tests: number;
+  pass_rate: number;                    // 0-100
+  policy_violations_count: number;
+  max_risk_severity: number;            // Highest risk severity found
+  gate_failures: GateFailure[];         // Specific gate failures
+  timestamp: string;
+  duration_ms: number;
+}
+
+export interface GateFailure {
+  gate: string;                         // Which gate failed
+  reason: string;                       // Why it failed
+  threshold?: number;                   // Expected threshold
+  actual?: number;                      // Actual value
+  severity: 'critical' | 'high' | 'medium' | 'low';
 }
 
 // VCR types
@@ -157,6 +200,48 @@ export interface Config {
   redact_fields?: string[];
   providers?: ProviderConfig[];
   vcr?: VCRConfig;
+  embedding?: EmbeddingConfig;  // 2026 Q1: Semantic assertions
+  risk_scoring?: RiskScoringConfig;  // 2026 Q1: Risk scoring
+  policies?: PolicyConfig;  // 2026 Q1: Policy contracts
+  ci_gating?: CIGatingConfig;  // 2026 Q1: CI quality gates
+}
+
+export interface RiskScoringConfig {
+  enabled?: boolean;            // Default: true
+  fail_on?: 'safety' | 'semantic' | 'cosmetic' | 'never';  // Default: 'safety'
+  min_severity?: number;        // 1-10, fail if severity >= this. Default: 8
+  allow_cosmetic?: boolean;     // Allow cosmetic changes without review. Default: true
+  require_approval_for?: ('safety' | 'semantic')[];  // Default: ['safety']
+  auto_approve_below?: number;  // Auto-approve if severity < this. Default: 4
+}
+
+export interface PolicyConfig {
+  enabled?: boolean;            // Default: true
+  contracts?: string[];         // Policy contract IDs to apply
+  fail_on?: 'critical' | 'high' | 'medium' | 'low' | 'never';  // Default: 'critical'
+  custom_contracts?: string;    // Path to custom policy contracts file
+}
+
+export interface CIGatingConfig {
+  enabled?: boolean;                    // Default: true in CI
+  fail_on_test_failure?: boolean;       // Default: true
+  fail_on_policy_violations?: boolean;  // Default: true
+  fail_on_risk_threshold?: boolean;     // Default: true
+  max_risk_severity?: number;           // 1-10, fail if any test >= this. Default: 8
+  min_pass_rate?: number;               // 0-100, fail if pass rate < this. Default: 90
+  require_baselines?: boolean;          // Fail if tests have no baseline. Default: false
+  generate_badge?: boolean;             // Generate status badge. Default: true
+  badge_path?: string;                  // Badge output path. Default: .ai-tests/badge.svg
+  summary_path?: string;                // Summary output path. Default: .ai-tests/summary.md
+}
+
+export interface EmbeddingConfig {
+  provider: 'openai' | 'anthropic' | 'local';
+  model?: string;               // e.g., 'text-embedding-3-small'
+  api_key_env_var?: string;     // Default: OPENAI_API_KEY
+  base_url?: string;            // Custom endpoint
+  cache_enabled?: boolean;      // Default: true
+  cache_dir?: string;           // Default: .ai-tests/embeddings
 }
 
 export type ProviderType = 'openai' | 'anthropic' | 'gemini' | 'ollama';

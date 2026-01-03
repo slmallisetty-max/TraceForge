@@ -14,7 +14,9 @@ TraceForge.baseline helps developers debug AI applications by:
 - 📊 **Visualizing traces** in a web interface with streaming support
 - 🔄 **Side-by-side comparison** with deep diff view and similarity scoring
 - ✅ **Creating deterministic tests** from captured traces
-- 🧪 **8 advanced assertion types** (exact, contains, regex, fuzzy, JSON path, latency, tokens)
+- 🧪 **11 assertion types** including semantic assertions (NEW in 2026 Q1!)
+  - Traditional: exact, contains, regex, fuzzy, JSON path, latency, tokens
+  - **Semantic**: meaning-based validation using embeddings
 - 📈 **Analytics dashboard** with 6 metrics, timeline charts, and model distribution
 - ⚙️ **Web-based config editor** with real-time validation
 - 🏃 **Parallel test execution** with fixtures, watch mode, and JUnit XML reporting
@@ -189,7 +191,42 @@ npx pnpm test --watch
 
 # Build all packages
 npx pnpm build
+
+# Integration testing (requires OPENAI_API_KEY)
+node test-semantic-integration.js
+
+# Performance benchmarks
+node benchmark-embeddings.js
 ```
+
+## 🆕 Semantic Assertions (2026 Q1)
+
+Test AI behavior by **meaning**, not just exact text! Uses OpenAI embeddings to understand if responses convey the same idea.
+
+```yaml
+assertions:
+  # Check if response conveys the same meaning
+  - type: semantic
+    expected: "Paris is the capital of France"
+    threshold: 0.85
+    description: "Should indicate Paris is France's capital"
+  
+  # Detect contradictions
+  - type: semantic-contradiction
+    forbidden:
+      - "Paris is not in France"
+      - "France has no capital"
+    threshold: 0.70
+    description: "Should not contradict basic facts"
+```
+
+**Quick Start:**
+- Set `OPENAI_API_KEY` environment variable
+- Use `semantic` for meaning-based matching
+- Use `semantic-contradiction` to catch forbidden statements
+- Embeddings are cached for deterministic CI runs
+
+📖 **Full Guide**: [guides/SEMANTIC_ASSERTIONS_QUICK_START.md](guides/SEMANTIC_ASSERTIONS_QUICK_START.md)
 
 ## VS Code Extension
 
