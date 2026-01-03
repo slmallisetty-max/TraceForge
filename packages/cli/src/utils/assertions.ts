@@ -1,4 +1,6 @@
 import type { Assertion, AssertionResult, LLMResponse, TraceMetadata } from '@traceforge/shared';
+import { getDefaultEmbeddingService, cosineSimilarity } from '../../../proxy/src/embeddings.js';
+import type { EmbeddingService } from '../../../proxy/src/embeddings.js';
 
 /**
  * Extract text content from LLM response
@@ -141,11 +143,11 @@ function estimateTokenCount(text: string): number {
 /**
  * Evaluate a single assertion against a response
  */
-export function evaluateAssertion(
+export async function evaluateAssertion(
   assertion: Assertion,
   response: LLMResponse | null,
   metadata: TraceMetadata
-): AssertionResult {
+): Promise<AssertionResult> {
   // Handle null response
   if (!response) {
     return {
@@ -340,6 +342,181 @@ export function evaluateAssertion(
         };
       }
 
+      case 'semantic': {
+        const actual = assertion.field 
+          ? String(getValueAtPath(response, assertion.field) || '')
+          : responseText;
+        const expected = String(assertion.expected || '');
+        const threshold = assertion.threshold || 0.8;
+        const useCache = assertion.use_cache !== false; // Default true
+
+        if (!expected || expected.trim().length === 0) {
+          return {
+            assertion,
+            passed: false,
+            error: 'Missing expected text for semantic assertion',
+            message: 'Semantic assertion requires non-empty "expected" field with text to compare against',
+          };
+        }
+
+        if (!actual || actual.trim().length === 0) {
+          return {
+            assertion,
+            passed: false,
+            error: 'Response text is empty',
+            message: assertion.field 
+              ? `Field "${assertion.field}" is empty or not found in response`
+              : 'Response has no content to evaluate',
+          };
+        }
+
+        try {
+          // Get embedding service (from config or environment)
+          const embeddingService = getDefaultEmbeddingService(useCache);
+          
+          // Generate embeddings
+          const [actualEmbedding, expectedEmbedding] = await embeddingService.generateEmbeddings([
+            actual,
+            expected,
+          ]);
+          
+          // Calculate similarity
+          const similarity = cosineSimilarity(actualEmbedding, expectedEmbedding);
+          const passed = similarity >= threshold;
+          
+          return {
+            assertion,
+            passed,
+            actual: `"${actual.substring(0, 100)}${actual.length > 100 ? '...' : ''}" (similarity: ${similarity.toFixed(3)})`,
+            expected: `"${expected.substring(0, 100)}${expected.length > 100 ? '...' : ''}" (threshold: ${threshold})`,
+            message: passed
+              ? `✓ Semantic similarity ${similarity.toFixed(3)} meets threshold ${threshold}`
+              : `✗ Semantic similarity ${similarity.toFixed(3)} below threshold ${threshold}. Consider lowering threshold or adjusting expected text.`,
+          };
+        } catch (error: any) {
+          // Provide helpful error messages
+          let helpText = '';
+          if (error.message.includes('API key')) {
+            helpText = ' Set OPENAI_API_KEY environment variable to use semantic assertions.';
+          } else if (error.message.includes('rate limit')) {
+            helpText = ' Wait a moment and try again, or reduce test concurrency.';
+          }
+          
+          return {
+            assertion,
+            passed: false,
+            error: error.message,
+            message: `Failed to evaluate semantic assertion: ${error.message}${helpText}`,
+          };
+        }
+      }
+
+      case 'semantic-contradiction': {
+        const actual = assertion.field 
+          ? String(getValueAtPath(response, assertion.field) || '')
+          : responseText;
+        const forbidden = assertion.forbidden || [];
+        const threshold = assertion.threshold || 0.75; // High similarity = contradiction
+        const useCache = assertion.use_cache !== false; // Default true
+
+        if (forbidden.length === 0) {
+          return {
+            assertion,
+            passed: false,
+            error: 'Missing forbidden statements',
+            message: 'Semantic-contradiction requires non-empty "forbidden" array with statements to avoid',
+          };
+        }
+
+        if (!actual || actual.trim().length === 0) {
+          return {
+            assertion,
+            passed: false,
+            error: 'Response text is empty',
+            message: assertion.field 
+              ? `Field "${assertion.field}" is empty or not found in response`
+              : 'Response has no content to evaluate for contradictions',
+          };
+        }
+
+        try {
+          const embeddingService = getDefaultEmbeddingService(useCache);
+          
+          // Generate embedding for actual response
+          const actualEmbedding = await embeddingService.generateEmbedding(actual);
+          
+          // Check similarity with each forbidden statement
+          const similarities: Array<{ statement: string; similarity: number }> = [];
+          
+          for (const forbiddenText of forbidden) {
+            if (!forbiddenText || forbiddenText.trim().length === 0) {
+              continue; // Skip empty forbidden statements
+            }
+            const forbiddenEmbedding = await embeddingService.generateEmbedding(forbiddenText);
+            const similarity = cosineSimilarity(actualEmbedding, forbiddenEmbedding);
+            similarities.push({ statement: forbiddenText, similarity });
+          }
+          
+          if (similarities.length === 0) {
+            return {
+              assertion,
+              passed: false,
+              error: 'All forbidden statements are empty',
+              message: 'Provide at least one non-empty forbidden statement',
+            };
+          }
+          
+          // Find highest similarity (most contradictory)
+          const maxSimilarity = Math.max(...similarities.map(s => s.similarity));
+          const contradiction = similarities.find(s => s.similarity === maxSimilarity);
+          const passed = maxSimilarity < threshold; // Pass if below contradiction threshold
+          
+          return {
+            assertion,
+            passed,
+            actual: `"${actual.substring(0, 100)}${actual.length > 100 ? '...' : ''}"`,
+            expected: `Not similar to forbidden statements (threshold: ${threshold})`,
+            message: passed
+              ? `✓ No contradictions detected (max similarity: ${maxSimilarity.toFixed(3)} with "${contradiction!.statement.substring(0, 40)}...")`
+              : `✗ Contradiction detected: similarity ${maxSimilarity.toFixed(3)} with "${contradiction!.statement.substring(0, 50)}${contradiction!.statement.length > 50 ? '...' : ''}" exceeds threshold ${threshold}`,
+          };
+        } catch (error: any) {
+          // Provide helpful error messages
+          let helpText = '';
+          if (error.message.includes('API key')) {
+            helpText = ' Set OPENAI_API_KEY environment variable to use semantic assertions.';
+          }
+          
+          return {
+            assertion,
+            passed: false,
+            error: error.message,
+            message: `Failed to evaluate semantic-contradiction: ${error.message}${helpText}`,
+          };
+        }
+      }
+
+      case 'semantic-intent': {
+        // TODO: Implement intent classification (Week 4)
+        // This will require an LLM-judged approach (bounded, cached)
+        return {
+          assertion,
+          passed: false,
+          error: 'Not implemented',
+          message: 'semantic-intent assertion coming in 2026 Q1 Week 4',
+        };
+      }
+
+      case 'policy': {
+        // TODO: Implement policy enforcement (Week 4)
+        return {
+          assertion,
+          passed: false,
+          error: 'Not implemented',
+          message: 'policy assertion coming in 2026 Q1 Week 4',
+        };
+      }
+
       default:
         return {
           assertion,
@@ -361,12 +538,14 @@ export function evaluateAssertion(
 /**
  * Evaluate all assertions for a test
  */
-export function evaluateAssertions(
+export async function evaluateAssertions(
   assertions: Assertion[],
   response: LLMResponse | null,
   metadata: TraceMetadata
-): AssertionResult[] {
-  return assertions.map(assertion => 
-    evaluateAssertion(assertion, response, metadata)
+): Promise<AssertionResult[]> {
+  return Promise.all(
+    assertions.map(assertion => 
+      evaluateAssertion(assertion, response, metadata)
+    )
   );
 }

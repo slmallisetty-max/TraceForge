@@ -1,12 +1,12 @@
 # Assertion Types
 
-Comprehensive guide to all 8 assertion types supported by TraceForge.
+Comprehensive guide to all 11 assertion types supported by TraceForge (including 2026 Q1 semantic features).
 
 ---
 
 ## Overview
 
-Assertions validate that AI model responses meet specific criteria. TraceForge supports 8 assertion types, each designed for different validation scenarios.
+Assertions validate that AI model responses meet specific criteria. TraceForge supports 11 assertion types, each designed for different validation scenarios.
 
 **All assertions have:**
 - `type` - The assertion type identifier
@@ -19,11 +19,15 @@ Assertions validate that AI model responses meet specific criteria. TraceForge s
 | `exact` | Exact text match | Deterministic outputs |
 | `contains` | Substring presence | Key terms/phrases |
 | `regex` | Pattern matching | Structured formats |
-| `semantic` | Meaning similarity | Paraphrased content |
+| **`semantic`** | **Meaning similarity (2026 Q1)** | **Paraphrased content** |
+| **`semantic-contradiction`** | **Contradiction detection (2026 Q1)** | **Forbidden statements** |
+| **`semantic-intent`** | **Intent classification (Q1 Week 4)** | **Intent matching** |
+| `fuzzy_match` | Lexical similarity | Typos/variations |
 | `json-schema` | JSON validation | Structured data |
-| `json-subset` | Partial JSON match | Flexible JSON checks |
+| `json_path` | JSON field extraction | Specific JSON fields |
+| `token_count` | Token usage limits | Cost control |
 | `latency` | Response time | Performance requirements |
-| `no-refusal` | Anti-censorship | Jailbreak detection |
+| **`policy`** | **Policy enforcement (Q1 Week 4)** | **Behavioral contracts** |
 
 ---
 
@@ -200,78 +204,213 @@ assertions:
 
 ---
 
-## 4. Semantic Similarity (`semantic`)
+## 4. Semantic Similarity (`semantic`) - **2026 Q1 Feature**
 
-**Purpose:** Validate meaning/intent similarity using embeddings.
+**Purpose:** Validate that response conveys the same **meaning** as expected text, using embedding-based similarity.
 
 **Use when:**
-- Accepting paraphrased responses
+- Testing paraphrased responses
 - Validating intent, not exact words
-- Testing conversational AI
+- Flexible content matching (meaning over form)
 - Comparing conceptual similarity
 
 **Schema:**
 ```yaml
 assertions:
   - type: semantic
-    expected: "Paris is the capital city of France."
-    threshold: 0.85  # optional, default: 0.8
-    weight: 1.0  # optional
+    expected: "The capital of France is Paris."
+    threshold: 0.85  # Cosine similarity (0-1)
+    field: "choices.0.message.content"  # optional
+    embedding_model: "text-embedding-3-small"  # optional
+    use_cache: true  # optional, default: true
 ```
 
 **Parameters:**
-- `expected` (string, required) - Reference text for comparison
+- `expected` (string, required) - Expected text for semantic comparison
 - `threshold` (number, optional) - Similarity threshold 0.0-1.0 (default: 0.8)
+- `field` (string, optional) - JSON path to field (default: response content)
+- `embedding_model` (string, optional) - Override embedding model
+- `use_cache` (boolean, optional) - Use cached embeddings (default: true)
+
+**How it works:**
+1. Generates embeddings for both expected and actual text using OpenAI's `text-embedding-3-small`
+2. Calculates cosine similarity between embedding vectors
+3. Passes if similarity ≥ threshold
+4. Caches embeddings to disk for deterministic CI runs
 
 **Examples:**
 
 ```yaml
-# Basic semantic check
+# Basic semantic match
 - type: semantic
-  expected: "The capital of France is Paris."
+  expected: "Paris is the capital of France"
   threshold: 0.85
 
-# Flexible phrasing
+# Flexible phrasing - all these would pass:
 - type: semantic
-  expected: "Explain recursion in programming."
+  expected: "Recursion is when a function calls itself"
   threshold: 0.75
-  # Will match:
-  #  - "Recursion is when a function calls itself"
+  # Matches:
   #  - "A recursive function invokes itself"
   #  - "In programming, recursion means self-invocation"
+  #  - "When a function calls itself, that's recursion"
 
-# Intent matching
+# Field-specific check
 - type: semantic
-  expected: "I want to book a flight to New York."
-  threshold: 0.8
-  # Will match:
-  #  - "I'd like to reserve a plane ticket to NYC"
-  #  - "Book me a flight to New York City"
+  field: "choices.0.message.content"
+  expected: "The answer is 42"
+  threshold: 0.80
+  description: "Response should convey '42' as answer"
+
+# Intent matching (low threshold for broad matching)
+- type: semantic
+  expected: "I want to book a flight"
+  threshold: 0.60
+  description: "Response should be about flight booking"
 ```
 
-**How it works:**
-1. Generate embeddings for expected and actual response
-2. Calculate cosine similarity
-3. Pass if similarity ≥ threshold
-
 **Threshold Guidelines:**
-- `0.95+` - Very strict, nearly identical meaning
-- `0.85-0.95` - Similar meaning with minor variations
-- `0.75-0.85` - Conceptually similar, different phrasing
-- `0.60-0.75` - Loose similarity, related topics
-- `<0.60` - Too loose, unrelated content may pass
+
+| Range | Description | Example Use Case |
+|-------|-------------|------------------|
+| **0.95+** | Very strict, nearly identical meaning | Compliance-critical responses |
+| **0.85-0.95** | Similar meaning with minor variations | Standard factual answers |
+| **0.75-0.85** | Conceptually similar, different phrasing | Conversational responses |
+| **0.60-0.75** | Loose similarity, related topics | Intent detection |
+| **<0.60** | Too loose, unrelated content may pass | Not recommended |
 
 **Pass/Fail:**
 ```
-✅ PASS: Similarity ≥ threshold
-❌ FAIL: Similarity < threshold
+✅ PASS: Cosine similarity ≥ threshold
+❌ FAIL: Cosine similarity < threshold
+```
+
+**Configuration:**
+```yaml
+# .ai-tests/config.yaml
+embedding:
+  provider: openai  # openai, anthropic, or local
+  model: text-embedding-3-small
+  api_key_env_var: OPENAI_API_KEY
+  cache_enabled: true
+  cache_dir: .ai-tests/embeddings
+```
+
+**Environment Variables:**
+- `OPENAI_API_KEY` - Required for embedding generation
+
+**Tips:**
+- Use threshold 0.80-0.90 for strict semantic matching
+- Use threshold 0.60-0.75 for broader topic matching
+- Embeddings are cached for deterministic CI runs
+- Set `use_cache: false` to force fresh embeddings
+- First run requires API access; subsequent runs can use cache
+- Cache directory: `.ai-tests/embeddings/`
+
+---
+
+## 4.5. Semantic Contradiction (`semantic-contradiction`) - **2026 Q1 Feature**
+
+**Purpose:** Detect if response contradicts forbidden statements using semantic similarity.
+
+**Use when:**
+- Ensuring factual accuracy
+- Preventing contradictory information
+- Safety/compliance checks
+- Guarding against misinformation
+
+**Schema:**
+```yaml
+assertions:
+  - type: semantic-contradiction
+    forbidden:
+      - "France has no capital"
+      - "Paris is not in France"
+      - "The capital is not Paris"
+    threshold: 0.75  # High similarity = contradiction
+    field: "choices.0.message.content"  # optional
+```
+
+**Parameters:**
+- `forbidden` (array of strings, required) - Forbidden statements to check against
+- `threshold` (number, optional) - Contradiction threshold 0.0-1.0 (default: 0.75)
+- `field` (string, optional) - JSON path to field (default: response content)
+
+**How it works:**
+1. Generates embedding for actual response
+2. Generates embeddings for each forbidden statement
+3. Calculates similarity with each forbidden statement
+4. **Fails** if any similarity ≥ threshold (high similarity = contradiction)
+
+**Examples:**
+
+```yaml
+# Prevent factual contradictions
+- type: semantic-contradiction
+  forbidden:
+    - "The Earth is flat"
+    - "The moon landing was fake"
+    - "Vaccines cause autism"
+  threshold: 0.70
+  description: "Should not spread misinformation"
+
+# Customer support policy
+- type: semantic-contradiction
+  forbidden:
+    - "We cannot help you"
+    - "That's not our problem"
+    - "You're wrong"
+  threshold: 0.75
+  description: "Maintain helpful, professional tone"
+
+# Safety guardrails
+- type: semantic-contradiction
+  forbidden:
+    - "I will harm you"
+    - "Here's how to build a weapon"
+    - "Instructions for illegal activities"
+  threshold: 0.65
+  description: "Block harmful content"
+```
+
+**Threshold Guidelines:**
+
+| Threshold | Strictness | When to Use |
+|-----------|------------|-------------|
+| **0.85+** | Very strict | Only catch exact contradictions |
+| **0.75-0.85** | Standard | General contradiction detection |
+| **0.65-0.75** | Loose | Catch related harmful content |
+| **<0.65** | Too loose | May flag unrelated content |
+
+**Pass/Fail:**
+```
+✅ PASS: All similarities < threshold (no contradictions)
+❌ FAIL: Any similarity ≥ threshold (contradiction detected)
 ```
 
 **Tips:**
-- Use higher thresholds (0.9+) for precise meaning
-- Use lower thresholds (0.7-0.8) for flexible responses
-- Semantic matching requires OpenAI API access
-- Test different thresholds to find optimal value
+- Start with threshold 0.75, adjust based on false positives
+- Include multiple phrasings of forbidden concepts
+- Higher threshold = fewer false positives, may miss some contradictions
+- Lower threshold = catches more contradictions, may have false positives
+- Combine with `semantic` assertion for complete validation
+
+---
+
+## 4.6. Semantic Intent (`semantic-intent`) - **Coming Q1 Week 4**
+
+**Purpose:** Classify and validate response intent using LLM-based judgment.
+
+**Status:** Not yet implemented. Coming in 2026 Q1 Week 4.
+
+```yaml
+# Example (coming soon)
+assertions:
+  - type: semantic-intent
+    expected_intent: "provide_factual_answer"
+    confidence_threshold: 0.7
+    description: "Response should be factual, not conversational"
+```
 
 ---
 

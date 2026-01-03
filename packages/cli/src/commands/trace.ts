@@ -4,6 +4,7 @@ import { resolve } from 'path';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import type { Trace } from '@traceforge/shared';
+import { calculateRiskScore, formatRiskScore } from '@traceforge/shared';
 
 const TRACES_DIR = resolve(process.cwd(), '.ai-tests/traces');
 
@@ -117,3 +118,98 @@ traceCommand
       process.exit(1);
     }
   });
+
+// trace compare command
+traceCommand
+  .command('compare <baseline-id> <current-id>')
+  .description('Compare two traces and analyze differences')
+  .option('--with-risk', 'Include risk scoring analysis')
+  .action(async (baselineId: string, currentId: string, options: { withRisk?: boolean }) => {
+    try {
+      const files = await readdir(TRACES_DIR);
+      
+      // Find trace files
+      const baselineFile = files.find(f => f.includes(baselineId));
+      const currentFile = files.find(f => f.includes(currentId));
+
+      if (!baselineFile) {
+        console.log(chalk.red(`Baseline trace not found: ${baselineId}`));
+        process.exit(1);
+      }
+
+      if (!currentFile) {
+        console.log(chalk.red(`Current trace not found: ${currentId}`));
+        process.exit(1);
+      }
+
+      // Load traces
+      const baselineContent = await readFile(resolve(TRACES_DIR, baselineFile), 'utf-8');
+      const currentContent = await readFile(resolve(TRACES_DIR, currentFile), 'utf-8');
+      
+      const baseline: Trace = JSON.parse(baselineContent);
+      const current: Trace = JSON.parse(currentContent);
+
+      // Extract response text
+      const getResponseText = (trace: any): string => {
+        if (trace.response?.choices?.[0]?.message?.content) {
+          return trace.response.choices[0].message.content;
+        }
+        if (trace.response?.choices?.[0]?.text) {
+          return trace.response.choices[0].text;
+        }
+        return JSON.stringify(trace.response || {});
+      };
+
+      const baselineText = getResponseText(baseline);
+      const currentText = getResponseText(current);
+
+      // Display basic comparison
+      console.log(chalk.bold('\n=== Trace Comparison ===\n'));
+      console.log(chalk.cyan('Baseline ID:'), baseline.id.substring(0, 8));
+      console.log(chalk.cyan('Current ID:'), current.id.substring(0, 8));
+      console.log(chalk.cyan('Model:'), `${baseline.metadata.model} → ${current.metadata.model}`);
+      console.log(chalk.cyan('Duration:'), `${baseline.metadata.duration_ms}ms → ${current.metadata.duration_ms}ms`);
+      
+      if (baseline.metadata.tokens_used && current.metadata.tokens_used) {
+        console.log(chalk.cyan('Tokens:'), `${baseline.metadata.tokens_used} → ${current.metadata.tokens_used}`);
+      }
+
+      // Show text diff
+      console.log(chalk.bold('\n--- Response Comparison ---\n'));
+      console.log(chalk.gray('Baseline length:'), baselineText.length, 'chars');
+      console.log(chalk.gray('Current length:'), currentText.length, 'chars');
+      
+      const lengthDiff = currentText.length - baselineText.length;
+      const lengthDiffPercent = ((lengthDiff / baselineText.length) * 100).toFixed(1);
+      console.log(chalk.gray('Length difference:'), 
+        lengthDiff >= 0 ? chalk.green(`+${lengthDiff}`) : chalk.red(`${lengthDiff}`),
+        `(${lengthDiffPercent}%)`
+      );
+
+      // Risk scoring (if requested)
+      if (options.withRisk) {
+        console.log(chalk.bold('\n--- Risk Analysis ---\n'));
+        
+        try {
+          const riskScore = await calculateRiskScore(
+            baselineText,
+            currentText,
+            baseline.metadata,
+            current.metadata
+          );
+
+          console.log(formatRiskScore(riskScore));
+        } catch (error: any) {
+          console.error(chalk.yellow('\nWarning: Risk scoring failed:'), error.message);
+          console.log(chalk.gray('Tip: Make sure OPENAI_API_KEY is set for semantic analysis'));
+        }
+      } else {
+        console.log(chalk.gray('\nTip: Use --with-risk flag for risk analysis'));
+      }
+
+    } catch (error: any) {
+      console.error(chalk.red('Error comparing traces:'), error.message);
+      process.exit(1);
+    }
+  });
+
