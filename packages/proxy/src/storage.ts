@@ -1,4 +1,4 @@
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, readdir, stat, unlink } from 'fs/promises';
 import { resolve } from 'path';
 import { existsSync } from 'fs';
 import type { Trace } from '@traceforge/shared';
@@ -68,6 +68,90 @@ export class TraceStorage {
       
       // Re-throw to let caller handle (don't silently fail)
       throw errorObj;
+    }
+  }
+
+  /**
+   * Count total number of traces
+   */
+  static async countTraces(): Promise<number> {
+    try {
+      if (!existsSync(TRACES_DIR)) {
+        return 0;
+      }
+
+      const files = await readdir(TRACES_DIR);
+      return files.filter(f => f.endsWith('.json')).length;
+    } catch (error) {
+      console.error('[STORAGE ERROR] Failed to count traces:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Clean up traces based on age and/or count
+   * @param maxAgeSeconds Delete traces older than this (optional)
+   * @param maxCount Keep only the newest N traces (optional)
+   * @returns Number of traces deleted
+   */
+  static async cleanup(maxAgeSeconds?: number, maxCount?: number): Promise<number> {
+    try {
+      if (!existsSync(TRACES_DIR)) {
+        return 0;
+      }
+
+      const files = await readdir(TRACES_DIR);
+      const traceFiles = files.filter(f => f.endsWith('.json'));
+
+      if (traceFiles.length === 0) {
+        return 0;
+      }
+
+      // Get file stats with timestamps
+      const fileStats = await Promise.all(
+        traceFiles.map(async (filename) => {
+          const filepath = resolve(TRACES_DIR, filename);
+          const stats = await stat(filepath);
+          return {
+            filename,
+            filepath,
+            mtime: stats.mtime.getTime(),
+          };
+        })
+      );
+
+      // Sort by modification time (newest first)
+      fileStats.sort((a, b) => b.mtime - a.mtime);
+
+      const toDelete: string[] = [];
+
+      // Delete by age
+      if (maxAgeSeconds) {
+        const cutoffTime = Date.now() - (maxAgeSeconds * 1000);
+        for (const file of fileStats) {
+          if (file.mtime < cutoffTime) {
+            toDelete.push(file.filepath);
+          }
+        }
+      }
+
+      // Delete by count (keep only newest N)
+      if (maxCount && fileStats.length > maxCount) {
+        const excess = fileStats.slice(maxCount);
+        for (const file of excess) {
+          if (!toDelete.includes(file.filepath)) {
+            toDelete.push(file.filepath);
+          }
+        }
+      }
+
+      // Perform deletions
+      await Promise.all(toDelete.map(filepath => unlink(filepath)));
+
+      return toDelete.length;
+    } catch (error) {
+      console.error('[STORAGE ERROR] Failed to cleanup traces:', error);
+      throw error;
     }
   }
 }

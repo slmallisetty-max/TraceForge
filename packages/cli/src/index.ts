@@ -6,6 +6,7 @@ import { traceCommand } from './commands/trace.js';
 import { testCommand } from './commands/test.js';
 import { startCommand } from './commands/start.js';
 import { vcrCommand } from './commands/vcr.js';
+import { embeddingsCommand } from './commands/embeddings.js';
 
 const program = new Command();
 
@@ -20,6 +21,7 @@ program.addCommand(initCommand);
 program.addCommand(traceCommand);
 program.addCommand(testCommand);
 program.addCommand(vcrCommand);
+program.addCommand(embeddingsCommand);
 
 // Show helpful message if no command specified
 if (process.argv.length === 2) {
