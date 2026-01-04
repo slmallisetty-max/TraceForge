@@ -3,9 +3,9 @@
  * Supports OpenAI and Ollama (local) embeddings
  */
 
-import { EmbeddingCache } from './embedding-cache.js';
+import { EmbeddingCache } from "./embedding-cache.js";
 
-export type EmbeddingProvider = 'openai' | 'ollama';
+export type EmbeddingProvider = "openai" | "ollama";
 
 export interface EmbeddingServiceConfig {
   provider: EmbeddingProvider;
@@ -21,7 +21,9 @@ export interface EmbeddingServiceConfig {
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
-    throw new Error(`Vector dimensions don't match: ${a.length} vs ${b.length}`);
+    throw new Error(
+      `Vector dimensions don't match: ${a.length} vs ${b.length}`
+    );
   }
 
   let dotProduct = 0;
@@ -59,29 +61,31 @@ export interface EmbeddingService {
  */
 export class OpenAIEmbeddingService implements EmbeddingService {
   constructor(
-    private apiKey: string = process.env.OPENAI_API_KEY || '',
-    private model: string = 'text-embedding-3-small',
-    private baseUrl: string = 'https://api.openai.com/v1'
+    private apiKey: string = process.env.OPENAI_API_KEY || "",
+    private model: string = "text-embedding-3-small",
+    private baseUrl: string = "https://api.openai.com/v1"
   ) {
     if (!this.apiKey) {
-      throw new Error('OpenAI API key is required. Set OPENAI_API_KEY environment variable.');
+      throw new Error(
+        "OpenAI API key is required. Set OPENAI_API_KEY environment variable."
+      );
     }
   }
 
   getProvider(): EmbeddingProvider {
-    return 'openai';
+    return "openai";
   }
 
   async embed(text: string): Promise<number[]> {
     if (!text || text.trim().length === 0) {
-      throw new Error('Cannot generate embedding for empty text');
+      throw new Error("Cannot generate embedding for empty text");
     }
 
     try {
       const response = await fetch(`${this.baseUrl}/embeddings`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
@@ -91,7 +95,9 @@ export class OpenAIEmbeddingService implements EmbeddingService {
       });
 
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `OpenAI API error: ${response.status} ${response.statusText}`
+        );
       }
 
       const data: any = await response.json();
@@ -106,7 +112,7 @@ export class OpenAIEmbeddingService implements EmbeddingService {
   }
 
   async generateEmbeddings(texts: string[]): Promise<number[][]> {
-    return Promise.all(texts.map(text => this.embed(text)));
+    return Promise.all(texts.map((text) => this.embed(text)));
   }
 }
 
@@ -115,24 +121,24 @@ export class OpenAIEmbeddingService implements EmbeddingService {
  */
 export class OllamaEmbeddingService implements EmbeddingService {
   constructor(
-    private model: string = 'nomic-embed-text',
-    private baseUrl: string = 'http://localhost:11434'
+    private model: string = "nomic-embed-text",
+    private baseUrl: string = "http://localhost:11434"
   ) {}
 
   getProvider(): EmbeddingProvider {
-    return 'ollama';
+    return "ollama";
   }
 
   async embed(text: string): Promise<number[]> {
     if (!text || text.trim().length === 0) {
-      throw new Error('Cannot generate embedding for empty text');
+      throw new Error("Cannot generate embedding for empty text");
     }
 
     try {
       const response = await fetch(`${this.baseUrl}/api/embeddings`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model: this.model,
@@ -148,10 +154,10 @@ export class OllamaEmbeddingService implements EmbeddingService {
       const data: any = await response.json();
       return data.embedding;
     } catch (error: any) {
-      if (error.code === 'ECONNREFUSED') {
+      if (error.code === "ECONNREFUSED") {
         throw new Error(
           `Cannot connect to Ollama at ${this.baseUrl}. ` +
-          'Make sure Ollama is running: https://ollama.ai'
+            "Make sure Ollama is running: https://ollama.ai"
         );
       }
       throw new Error(`Failed to generate embedding: ${error.message}`);
@@ -163,7 +169,7 @@ export class OllamaEmbeddingService implements EmbeddingService {
   }
 
   async generateEmbeddings(texts: string[]): Promise<number[][]> {
-    return Promise.all(texts.map(text => this.embed(text)));
+    return Promise.all(texts.map((text) => this.embed(text)));
   }
 }
 
@@ -200,7 +206,7 @@ export class CachedEmbeddingService implements EmbeddingService {
   }
 
   async generateEmbeddings(texts: string[]): Promise<number[][]> {
-    return Promise.all(texts.map(text => this.embed(text)));
+    return Promise.all(texts.map((text) => this.embed(text)));
   }
 }
 
@@ -211,14 +217,15 @@ let embeddingCache: EmbeddingCache | null = null;
  * Load embedding configuration from environment
  */
 export function loadEmbeddingConfig(): EmbeddingServiceConfig {
-  const provider = (process.env.TRACEFORGE_EMBEDDING_PROVIDER || 'openai') as EmbeddingProvider;
+  const provider = (process.env.TRACEFORGE_EMBEDDING_PROVIDER ||
+    "openai") as EmbeddingProvider;
 
   return {
     provider,
     model: process.env.TRACEFORGE_EMBEDDING_MODEL,
     baseUrl: process.env.TRACEFORGE_EMBEDDING_BASE_URL,
     apiKey: process.env.OPENAI_API_KEY,
-    cacheEnabled: process.env.TRACEFORGE_EMBEDDING_CACHE !== 'false',
+    cacheEnabled: process.env.TRACEFORGE_EMBEDDING_CACHE !== "false",
     cachePath: process.env.TRACEFORGE_EMBEDDING_CACHE_PATH,
   };
 }
@@ -226,26 +233,28 @@ export function loadEmbeddingConfig(): EmbeddingServiceConfig {
 /**
  * Create embedding service from configuration
  */
-export function createEmbeddingService(config: EmbeddingServiceConfig): EmbeddingService {
+export function createEmbeddingService(
+  config: EmbeddingServiceConfig
+): EmbeddingService {
   switch (config.provider) {
-    case 'ollama':
+    case "ollama":
       return new OllamaEmbeddingService(
-        config.model || 'nomic-embed-text',
-        config.baseUrl || 'http://localhost:11434'
+        config.model || "nomic-embed-text",
+        config.baseUrl || "http://localhost:11434"
       );
 
-    case 'openai':
+    case "openai":
     default:
       if (!config.apiKey) {
         throw new Error(
-          'OPENAI_API_KEY environment variable is required for OpenAI embeddings. ' +
-          'Alternatively, use Ollama: export TRACEFORGE_EMBEDDING_PROVIDER=ollama'
+          "OPENAI_API_KEY environment variable is required for OpenAI embeddings. " +
+            "Alternatively, use Ollama: export TRACEFORGE_EMBEDDING_PROVIDER=ollama"
         );
       }
       return new OpenAIEmbeddingService(
         config.apiKey,
-        config.model || 'text-embedding-3-small',
-        config.baseUrl || 'https://api.openai.com/v1'
+        config.model || "text-embedding-3-small",
+        config.baseUrl || "https://api.openai.com/v1"
       );
   }
 }
@@ -253,15 +262,25 @@ export function createEmbeddingService(config: EmbeddingServiceConfig): Embeddin
 /**
  * Get the default embedding service (singleton)
  */
-export function getDefaultEmbeddingService(useCache: boolean = true): EmbeddingService {
+export function getDefaultEmbeddingService(
+  useCache: boolean = true
+): EmbeddingService {
   if (!defaultService) {
     const config = loadEmbeddingConfig();
     defaultService = createEmbeddingService(config);
 
     if (useCache && config.cacheEnabled) {
       embeddingCache = new EmbeddingCache(config.cachePath);
-      const model = config.model || (config.provider === 'ollama' ? 'nomic-embed-text' : 'text-embedding-3-small');
-      defaultService = new CachedEmbeddingService(defaultService, embeddingCache, model);
+      const model =
+        config.model ||
+        (config.provider === "ollama"
+          ? "nomic-embed-text"
+          : "text-embedding-3-small");
+      defaultService = new CachedEmbeddingService(
+        defaultService,
+        embeddingCache,
+        model
+      );
     }
   }
   return defaultService;

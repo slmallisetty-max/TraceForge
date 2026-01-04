@@ -1,11 +1,11 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import fastifyJwt from '@fastify/jwt';
-import fastifyAuth from '@fastify/auth';
+import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import fastifyJwt from "@fastify/jwt";
+import fastifyAuth from "@fastify/auth";
 
 export interface AuthConfig {
   enabled: boolean;
-  apiKey?: string;      // Simple API key auth
-  jwtSecret?: string;   // JWT-based auth
+  apiKey?: string; // Simple API key auth
+  jwtSecret?: string; // JWT-based auth
   publicPaths?: string[]; // Paths that don't require auth
 }
 
@@ -14,10 +14,10 @@ export interface AuthConfig {
  */
 export function loadAuthConfig(): AuthConfig {
   return {
-    enabled: process.env.TRACEFORGE_AUTH_ENABLED !== 'false', // Default: enabled
+    enabled: process.env.TRACEFORGE_AUTH_ENABLED !== "false", // Default: enabled
     apiKey: process.env.TRACEFORGE_API_KEY,
-    jwtSecret: process.env.TRACEFORGE_JWT_SECRET || 'change-me-in-production',
-    publicPaths: ['/api/health', '/health'],
+    jwtSecret: process.env.TRACEFORGE_JWT_SECRET || "change-me-in-production",
+    publicPaths: ["/api/health", "/health"],
   };
 }
 
@@ -30,24 +30,26 @@ export async function verifyApiKey(
   apiKey: string
 ) {
   const authHeader = request.headers.authorization;
-  
+
   if (!authHeader) {
-    throw new Error('Missing Authorization header');
+    throw new Error("Missing Authorization header");
   }
 
   // Support both "Bearer <key>" and "ApiKey <key>" formats
-  const [scheme, token] = authHeader.split(' ');
-  
+  const [scheme, token] = authHeader.split(" ");
+
   if (!token) {
-    throw new Error('Invalid Authorization header format');
+    throw new Error("Invalid Authorization header format");
   }
 
-  if (scheme === 'Bearer' || scheme === 'ApiKey') {
+  if (scheme === "Bearer" || scheme === "ApiKey") {
     if (token !== apiKey) {
-      throw new Error('Invalid API key');
+      throw new Error("Invalid API key");
     }
   } else {
-    throw new Error('Unsupported authentication scheme. Use "Bearer" or "ApiKey"');
+    throw new Error(
+      'Unsupported authentication scheme. Use "Bearer" or "ApiKey"'
+    );
   }
 }
 
@@ -58,16 +60,21 @@ export async function verifyJWT(request: FastifyRequest, _reply: FastifyReply) {
   try {
     await request.jwtVerify();
   } catch (err) {
-    throw new Error('Invalid or expired token');
+    throw new Error("Invalid or expired token");
   }
 }
 
 /**
  * Register authentication plugins
  */
-export async function registerAuth(fastify: FastifyInstance, config: AuthConfig) {
+export async function registerAuth(
+  fastify: FastifyInstance,
+  config: AuthConfig
+) {
   if (!config.enabled) {
-    fastify.log.warn('⚠️  Authentication is DISABLED. Do not use in production!');
+    fastify.log.warn(
+      "⚠️  Authentication is DISABLED. Do not use in production!"
+    );
     return;
   }
 
@@ -82,14 +89,14 @@ export async function registerAuth(fastify: FastifyInstance, config: AuthConfig)
   await fastify.register(fastifyAuth);
 
   // Add preHandler hook to protect routes
-  fastify.addHook('preHandler', async (request, reply) => {
+  fastify.addHook("preHandler", async (request, reply) => {
     // Skip public paths
-    if (config.publicPaths?.some(path => request.url.startsWith(path))) {
+    if (config.publicPaths?.some((path) => request.url.startsWith(path))) {
       return;
     }
 
     // Skip non-API routes (static files)
-    if (!request.url.startsWith('/api')) {
+    if (!request.url.startsWith("/api")) {
       return;
     }
 
@@ -97,26 +104,32 @@ export async function registerAuth(fastify: FastifyInstance, config: AuthConfig)
       // Try API key auth if configured
       if (config.apiKey) {
         await verifyApiKey(request, reply, config.apiKey);
-        request.log.info({ userId: 'api-key-user' }, 'Authenticated via API key');
+        request.log.info(
+          { userId: "api-key-user" },
+          "Authenticated via API key"
+        );
         return;
       }
 
       // Try JWT auth if configured
       if (config.jwtSecret) {
         await verifyJWT(request, reply);
-        request.log.info({ userId: (request.user as any)?.sub }, 'Authenticated via JWT');
+        request.log.info(
+          { userId: (request.user as any)?.sub },
+          "Authenticated via JWT"
+        );
         return;
       }
 
       // No auth methods configured
-      throw new Error('No authentication methods configured');
+      throw new Error("No authentication methods configured");
     } catch (error: any) {
       reply.code(401).send({
-        error: 'Unauthorized',
-        message: error.message || 'Authentication required',
+        error: "Unauthorized",
+        message: error.message || "Authentication required",
       });
     }
   });
 
-  fastify.log.info('✓ Authentication enabled for web API');
+  fastify.log.info("✓ Authentication enabled for web API");
 }

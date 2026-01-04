@@ -1,36 +1,44 @@
-import type { Assertion, AssertionResult, LLMResponse, TraceMetadata } from '@traceforge/shared';
-import { getDefaultEmbeddingService, cosineSimilarity } from '@traceforge/shared';
+import type {
+  Assertion,
+  AssertionResult,
+  LLMResponse,
+  TraceMetadata,
+} from "@traceforge/shared";
+import {
+  getDefaultEmbeddingService,
+  cosineSimilarity,
+} from "@traceforge/shared";
 
 /**
  * Extract text content from LLM response
  */
 function extractText(response: LLMResponse): string {
   if (!response || !response.choices || response.choices.length === 0) {
-    return '';
+    return "";
   }
 
   const choice = response.choices[0];
-  
+
   // Chat completion format
   if (choice.message?.content) {
     return choice.message.content;
   }
-  
+
   // Legacy completion format
   if (choice.text) {
     return choice.text;
   }
-  
-  return '';
+
+  return "";
 }
 
 /**
  * Get value at JSON path using dot notation
  */
 function getValueAtPath(obj: any, path: string): any {
-  const parts = path.split('.');
+  const parts = path.split(".");
   let current = obj;
-  
+
   for (const part of parts) {
     // Handle array indexing (e.g., "choices.0.message")
     const arrayMatch = part.match(/^(\w+)\[(\d+)\]$/);
@@ -40,42 +48,42 @@ function getValueAtPath(obj: any, path: string): any {
     } else {
       current = current?.[part];
     }
-    
+
     if (current === undefined) {
       return undefined;
     }
   }
-  
+
   return current;
 }
 
 /**
  * Calculate string similarity (Dice coefficient)
- * 
+ *
  * ⚠️ LIMITATION: Simple lexical similarity only!
- * 
+ *
  * This function uses the Dice coefficient (bigram-based) to measure
  * string similarity. It works well for:
  * - Detecting typos and minor variations
  * - Comparing structured text
  * - Fast approximate matching
- * 
+ *
  * It does NOT work well for:
  * - Semantic similarity ("car" vs "automobile")
  * - Different phrasings of the same meaning
  * - Translations or paraphrases
  * - Long texts with different word order
- * 
+ *
  * For semantic similarity, consider:
  * 1. Using embedding-based similarity (cosine distance of vectors)
  * 2. LLM-based semantic comparison
  * 3. Domain-specific similarity metrics
- * 
+ *
  * Alternative algorithms:
  * - Levenshtein distance: character-level edits
  * - Jaro-Winkler: better for short strings
  * - Cosine similarity: semantic/vector-based
- * 
+ *
  * @param str1 - First string
  * @param str2 - Second string
  * @returns Similarity score between 0 and 1
@@ -83,7 +91,7 @@ function getValueAtPath(obj: any, path: string): any {
 function calculateSimilarity(str1: string, str2: string): number {
   if (str1 === str2) return 1.0;
   if (str1.length < 2 || str2.length < 2) return 0.0;
-  
+
   // Create bigrams
   const getBigrams = (str: string): Set<string> => {
     const bigrams = new Set<string>();
@@ -92,10 +100,10 @@ function calculateSimilarity(str1: string, str2: string): number {
     }
     return bigrams;
   };
-  
+
   const bigrams1 = getBigrams(str1.toLowerCase());
   const bigrams2 = getBigrams(str2.toLowerCase());
-  
+
   // Calculate intersection
   let intersection = 0;
   for (const bigram of bigrams1) {
@@ -103,29 +111,29 @@ function calculateSimilarity(str1: string, str2: string): number {
       intersection++;
     }
   }
-  
+
   // Dice coefficient: 2 * |intersection| / (|set1| + |set2|)
   return (2 * intersection) / (bigrams1.size + bigrams2.size);
 }
 
 /**
  * Estimate token count (rough approximation)
- * 
+ *
  * ⚠️ LIMITATION: This is a rough estimate only!
- * 
+ *
  * This function provides a simple heuristic for token counting based on
  * word and character counts. It does NOT use model-specific tokenization.
- * 
+ *
  * Actual token counts may vary significantly depending on:
  * - The specific model (GPT-3.5, GPT-4, Claude, etc.)
  * - Language and character set (non-English text)
  * - Special tokens and formatting
- * 
+ *
  * For accurate token counts:
  * 1. Use the `usage` field from API responses (when available)
  * 2. Integrate a proper tokenizer library like `tiktoken` for OpenAI models
  * 3. Allow ±20% margin in token_count assertions to account for estimation error
- * 
+ *
  * @param text - The text to estimate token count for
  * @returns Estimated token count (±20% accuracy)
  */
@@ -134,7 +142,7 @@ function estimateTokenCount(text: string): number {
   // More accurate would use tiktoken or similar
   const words = text.trim().split(/\s+/).length;
   const chars = text.length;
-  
+
   // Average of word-based and char-based estimates
   return Math.round((words + chars / 4) / 2);
 }
@@ -152,8 +160,8 @@ export async function evaluateAssertion(
     return {
       assertion,
       passed: false,
-      error: 'No response available',
-      message: 'Response is null or undefined',
+      error: "No response available",
+      message: "Response is null or undefined",
     };
   }
 
@@ -161,33 +169,33 @@ export async function evaluateAssertion(
 
   try {
     switch (assertion.type) {
-      case 'exact': {
-        const field = assertion.field || 'choices[0].message.content';
-        const actual = assertion.field 
+      case "exact": {
+        const field = assertion.field || "choices[0].message.content";
+        const actual = assertion.field
           ? getValueAtPath(response, field)
           : responseText;
         const expected = assertion.value;
         const passed = actual === expected;
-        
+
         return {
           assertion,
           passed,
           actual,
           expected,
-          message: passed 
-            ? 'Exact match successful'
+          message: passed
+            ? "Exact match successful"
             : `Expected exact match but got different value`,
         };
       }
 
-      case 'contains': {
-        const field = assertion.field || 'choices[0].message.content';
-        const actual = assertion.field 
-          ? String(getValueAtPath(response, field) || '')
+      case "contains": {
+        const field = assertion.field || "choices[0].message.content";
+        const actual = assertion.field
+          ? String(getValueAtPath(response, field) || "")
           : responseText;
         const searchValue = String(assertion.value);
         const passed = actual.includes(searchValue);
-        
+
         return {
           assertion,
           passed,
@@ -199,14 +207,14 @@ export async function evaluateAssertion(
         };
       }
 
-      case 'not_contains': {
-        const field = assertion.field || 'choices[0].message.content';
-        const actual = assertion.field 
-          ? String(getValueAtPath(response, field) || '')
+      case "not_contains": {
+        const field = assertion.field || "choices[0].message.content";
+        const actual = assertion.field
+          ? String(getValueAtPath(response, field) || "")
           : responseText;
         const searchValue = String(assertion.value);
         const passed = !actual.includes(searchValue);
-        
+
         return {
           assertion,
           passed,
@@ -218,23 +226,23 @@ export async function evaluateAssertion(
         };
       }
 
-      case 'regex': {
+      case "regex": {
         if (!assertion.pattern) {
           return {
             assertion,
             passed: false,
-            error: 'No pattern provided for regex assertion',
-            message: 'Missing regex pattern',
+            error: "No pattern provided for regex assertion",
+            message: "Missing regex pattern",
           };
         }
-        
-        const field = assertion.field || 'choices[0].message.content';
-        const actual = assertion.field 
-          ? String(getValueAtPath(response, field) || '')
+
+        const field = assertion.field || "choices[0].message.content";
+        const actual = assertion.field
+          ? String(getValueAtPath(response, field) || "")
           : responseText;
         const regex = new RegExp(assertion.pattern);
         const passed = regex.test(actual);
-        
+
         return {
           assertion,
           passed,
@@ -246,21 +254,21 @@ export async function evaluateAssertion(
         };
       }
 
-      case 'json_path': {
+      case "json_path": {
         if (!assertion.path) {
           return {
             assertion,
             passed: false,
-            error: 'No path provided for json_path assertion',
-            message: 'Missing JSONPath expression',
+            error: "No path provided for json_path assertion",
+            message: "Missing JSONPath expression",
           };
         }
-        
+
         try {
           const actual = getValueAtPath(response, assertion.path);
           const expected = assertion.value;
           const passed = actual === expected;
-          
+
           return {
             assertion,
             passed,
@@ -280,30 +288,32 @@ export async function evaluateAssertion(
         }
       }
 
-      case 'fuzzy_match': {
-        const field = assertion.field || 'choices[0].message.content';
-        const actual = assertion.field 
-          ? String(getValueAtPath(response, field) || '')
+      case "fuzzy_match": {
+        const field = assertion.field || "choices[0].message.content";
+        const actual = assertion.field
+          ? String(getValueAtPath(response, field) || "")
           : responseText;
         const expected = String(assertion.value);
         const threshold = assertion.threshold ?? 0.8;
-        
+
         const similarity = calculateSimilarity(actual, expected);
         const passed = similarity >= threshold;
-        
+
         return {
           assertion,
           passed,
           actual,
           expected,
-          message: `Similarity: ${(similarity * 100).toFixed(1)}% (threshold: ${(threshold * 100).toFixed(0)}%)`,
+          message: `Similarity: ${(similarity * 100).toFixed(
+            1
+          )}% (threshold: ${(threshold * 100).toFixed(0)}%)`,
         };
       }
 
-      case 'token_count': {
+      case "token_count": {
         // Use actual token count from metadata if available
         let tokenCount: number;
-        
+
         if (metadata.tokens_used !== undefined) {
           tokenCount = metadata.tokens_used;
         } else if (response.usage?.total_tokens !== undefined) {
@@ -312,26 +322,28 @@ export async function evaluateAssertion(
           // Fallback to estimation
           tokenCount = estimateTokenCount(responseText);
         }
-        
+
         const min = assertion.min ?? 0;
         const max = assertion.max ?? Infinity;
         const passed = tokenCount >= min && tokenCount <= max;
-        
+
         return {
           assertion,
           passed,
           actual: tokenCount,
-          expected: `${min}-${max === Infinity ? '∞' : max} tokens`,
-          message: `Token count: ${tokenCount} (expected: ${min}-${max === Infinity ? '∞' : max})`,
+          expected: `${min}-${max === Infinity ? "∞" : max} tokens`,
+          message: `Token count: ${tokenCount} (expected: ${min}-${
+            max === Infinity ? "∞" : max
+          })`,
         };
       }
 
-      case 'latency': {
+      case "latency": {
         const duration = metadata.duration_ms;
         const max = assertion.max ?? 5000;
         const min = assertion.min ?? 0;
         const passed = duration >= min && duration <= max;
-        
+
         return {
           assertion,
           passed,
@@ -341,11 +353,11 @@ export async function evaluateAssertion(
         };
       }
 
-      case 'semantic': {
-        const actual = assertion.field 
-          ? String(getValueAtPath(response, assertion.field) || '')
+      case "semantic": {
+        const actual = assertion.field
+          ? String(getValueAtPath(response, assertion.field) || "")
           : responseText;
-        const expected = String(assertion.expected || '');
+        const expected = String(assertion.expected || "");
         const threshold = assertion.threshold || 0.8;
         const useCache = assertion.use_cache !== false; // Default true
 
@@ -353,8 +365,9 @@ export async function evaluateAssertion(
           return {
             assertion,
             passed: false,
-            error: 'Missing expected text for semantic assertion',
-            message: 'Semantic assertion requires non-empty "expected" field with text to compare against',
+            error: "Missing expected text for semantic assertion",
+            message:
+              'Semantic assertion requires non-empty "expected" field with text to compare against',
           };
         }
 
@@ -362,45 +375,56 @@ export async function evaluateAssertion(
           return {
             assertion,
             passed: false,
-            error: 'Response text is empty',
-            message: assertion.field 
+            error: "Response text is empty",
+            message: assertion.field
               ? `Field "${assertion.field}" is empty or not found in response`
-              : 'Response has no content to evaluate',
+              : "Response has no content to evaluate",
           };
         }
 
         try {
           // Get embedding service (from config or environment)
           const embeddingService = getDefaultEmbeddingService(useCache);
-          
+
           // Generate embeddings
-          const [actualEmbedding, expectedEmbedding] = await embeddingService.generateEmbeddings([
-            actual,
-            expected,
-          ]);
-          
+          const [actualEmbedding, expectedEmbedding] =
+            await embeddingService.generateEmbeddings([actual, expected]);
+
           // Calculate similarity
-          const similarity = cosineSimilarity(actualEmbedding, expectedEmbedding);
+          const similarity = cosineSimilarity(
+            actualEmbedding,
+            expectedEmbedding
+          );
           const passed = similarity >= threshold;
-          
+
           return {
             assertion,
             passed,
-            actual: `"${actual.substring(0, 100)}${actual.length > 100 ? '...' : ''}" (similarity: ${similarity.toFixed(3)})`,
-            expected: `"${expected.substring(0, 100)}${expected.length > 100 ? '...' : ''}" (threshold: ${threshold})`,
+            actual: `"${actual.substring(0, 100)}${
+              actual.length > 100 ? "..." : ""
+            }" (similarity: ${similarity.toFixed(3)})`,
+            expected: `"${expected.substring(0, 100)}${
+              expected.length > 100 ? "..." : ""
+            }" (threshold: ${threshold})`,
             message: passed
-              ? `✓ Semantic similarity ${similarity.toFixed(3)} meets threshold ${threshold}`
-              : `✗ Semantic similarity ${similarity.toFixed(3)} below threshold ${threshold}. Consider lowering threshold or adjusting expected text.`,
+              ? `✓ Semantic similarity ${similarity.toFixed(
+                  3
+                )} meets threshold ${threshold}`
+              : `✗ Semantic similarity ${similarity.toFixed(
+                  3
+                )} below threshold ${threshold}. Consider lowering threshold or adjusting expected text.`,
           };
         } catch (error: any) {
           // Provide helpful error messages
-          let helpText = '';
-          if (error.message.includes('API key')) {
-            helpText = ' Set OPENAI_API_KEY environment variable to use semantic assertions.';
-          } else if (error.message.includes('rate limit')) {
-            helpText = ' Wait a moment and try again, or reduce test concurrency.';
+          let helpText = "";
+          if (error.message.includes("API key")) {
+            helpText =
+              " Set OPENAI_API_KEY environment variable to use semantic assertions.";
+          } else if (error.message.includes("rate limit")) {
+            helpText =
+              " Wait a moment and try again, or reduce test concurrency.";
           }
-          
+
           return {
             assertion,
             passed: false,
@@ -410,9 +434,9 @@ export async function evaluateAssertion(
         }
       }
 
-      case 'semantic-contradiction': {
-        const actual = assertion.field 
-          ? String(getValueAtPath(response, assertion.field) || '')
+      case "semantic-contradiction": {
+        const actual = assertion.field
+          ? String(getValueAtPath(response, assertion.field) || "")
           : responseText;
         const forbidden = assertion.forbidden || [];
         const threshold = assertion.threshold || 0.75; // High similarity = contradiction
@@ -422,8 +446,9 @@ export async function evaluateAssertion(
           return {
             assertion,
             passed: false,
-            error: 'Missing forbidden statements',
-            message: 'Semantic-contradiction requires non-empty "forbidden" array with statements to avoid',
+            error: "Missing forbidden statements",
+            message:
+              'Semantic-contradiction requires non-empty "forbidden" array with statements to avoid',
           };
         }
 
@@ -431,61 +456,82 @@ export async function evaluateAssertion(
           return {
             assertion,
             passed: false,
-            error: 'Response text is empty',
-            message: assertion.field 
+            error: "Response text is empty",
+            message: assertion.field
               ? `Field "${assertion.field}" is empty or not found in response`
-              : 'Response has no content to evaluate for contradictions',
+              : "Response has no content to evaluate for contradictions",
           };
         }
 
         try {
           const embeddingService = getDefaultEmbeddingService(useCache);
-          
+
           // Generate embedding for actual response
-          const actualEmbedding = await embeddingService.generateEmbedding(actual);
-          
+          const actualEmbedding = await embeddingService.generateEmbedding(
+            actual
+          );
+
           // Check similarity with each forbidden statement
-          const similarities: Array<{ statement: string; similarity: number }> = [];
-          
+          const similarities: Array<{ statement: string; similarity: number }> =
+            [];
+
           for (const forbiddenText of forbidden) {
             if (!forbiddenText || forbiddenText.trim().length === 0) {
               continue; // Skip empty forbidden statements
             }
-            const forbiddenEmbedding = await embeddingService.generateEmbedding(forbiddenText);
-            const similarity = cosineSimilarity(actualEmbedding, forbiddenEmbedding);
+            const forbiddenEmbedding = await embeddingService.generateEmbedding(
+              forbiddenText
+            );
+            const similarity = cosineSimilarity(
+              actualEmbedding,
+              forbiddenEmbedding
+            );
             similarities.push({ statement: forbiddenText, similarity });
           }
-          
+
           if (similarities.length === 0) {
             return {
               assertion,
               passed: false,
-              error: 'All forbidden statements are empty',
-              message: 'Provide at least one non-empty forbidden statement',
+              error: "All forbidden statements are empty",
+              message: "Provide at least one non-empty forbidden statement",
             };
           }
-          
+
           // Find highest similarity (most contradictory)
-          const maxSimilarity = Math.max(...similarities.map(s => s.similarity));
-          const contradiction = similarities.find(s => s.similarity === maxSimilarity);
+          const maxSimilarity = Math.max(
+            ...similarities.map((s) => s.similarity)
+          );
+          const contradiction = similarities.find(
+            (s) => s.similarity === maxSimilarity
+          );
           const passed = maxSimilarity < threshold; // Pass if below contradiction threshold
-          
+
           return {
             assertion,
             passed,
-            actual: `"${actual.substring(0, 100)}${actual.length > 100 ? '...' : ''}"`,
+            actual: `"${actual.substring(0, 100)}${
+              actual.length > 100 ? "..." : ""
+            }"`,
             expected: `Not similar to forbidden statements (threshold: ${threshold})`,
             message: passed
-              ? `✓ No contradictions detected (max similarity: ${maxSimilarity.toFixed(3)} with "${contradiction!.statement.substring(0, 40)}...")`
-              : `✗ Contradiction detected: similarity ${maxSimilarity.toFixed(3)} with "${contradiction!.statement.substring(0, 50)}${contradiction!.statement.length > 50 ? '...' : ''}" exceeds threshold ${threshold}`,
+              ? `✓ No contradictions detected (max similarity: ${maxSimilarity.toFixed(
+                  3
+                )} with "${contradiction!.statement.substring(0, 40)}...")`
+              : `✗ Contradiction detected: similarity ${maxSimilarity.toFixed(
+                  3
+                )} with "${contradiction!.statement.substring(0, 50)}${
+                  contradiction!.statement.length > 50 ? "..." : ""
+                }" exceeds threshold ${threshold}`,
           };
         } catch (error: any) {
           // Provide helpful error messages
-          let helpText = '';
-          if (error.message.includes('API key')) {
-            helpText = ' Set OPENAI_API_KEY environment variable to use semantic assertions.';
+          let helpText = "";
+          if (error.message.includes("API key")) {
+            helpText =
+              " Set OPENAI_API_KEY environment variable to use semantic assertions.";
           }
-          
+
           return {
             assertion,
             passed: false,
@@ -495,24 +541,24 @@ export async function evaluateAssertion(
         }
       }
 
-      case 'semantic-intent': {
+      case "semantic-intent": {
         // TODO: Implement intent classification (Week 4)
         // This will require an LLM-judged approach (bounded, cached)
         return {
           assertion,
           passed: false,
-          error: 'Not implemented',
-          message: 'semantic-intent assertion coming in 2026 Q1 Week 4',
+          error: "Not implemented",
+          message: "semantic-intent assertion coming in 2026 Q1 Week 4",
         };
       }
 
-      case 'policy': {
+      case "policy": {
         // TODO: Implement policy enforcement (Week 4)
         return {
           assertion,
           passed: false,
-          error: 'Not implemented',
-          message: 'policy assertion coming in 2026 Q1 Week 4',
+          error: "Not implemented",
+          message: "policy assertion coming in 2026 Q1 Week 4",
         };
       }
 
@@ -521,7 +567,7 @@ export async function evaluateAssertion(
           assertion,
           passed: false,
           error: `Unknown assertion type: ${assertion.type}`,
-          message: 'Unsupported assertion type',
+          message: "Unsupported assertion type",
         };
     }
   } catch (error: any) {
@@ -543,7 +589,7 @@ export async function evaluateAssertions(
   metadata: TraceMetadata
 ): Promise<AssertionResult[]> {
   return Promise.all(
-    assertions.map(assertion => 
+    assertions.map((assertion) =>
       evaluateAssertion(assertion, response, metadata)
     )
   );

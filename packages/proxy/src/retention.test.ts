@@ -1,7 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { RetentionManager, loadRetentionPolicy, type RetentionPolicy } from './retention';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  RetentionManager,
+  loadRetentionPolicy,
+  type RetentionPolicy,
+} from "./retention";
 
-describe('RetentionManager', () => {
+describe("RetentionManager", () => {
   let mockStorage: any;
   let mockLogger: any;
 
@@ -21,7 +25,7 @@ describe('RetentionManager', () => {
     vi.clearAllTimers();
   });
 
-  it('does not start if policy is disabled', () => {
+  it("does not start if policy is disabled", () => {
     const policy: RetentionPolicy = {
       enabled: false,
       checkIntervalSeconds: 60,
@@ -30,11 +34,13 @@ describe('RetentionManager', () => {
     const manager = new RetentionManager(mockStorage, policy, mockLogger);
     manager.start();
 
-    expect(mockLogger.info).toHaveBeenCalledWith('Retention policy is disabled');
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      "Retention policy is disabled"
+    );
     expect(mockStorage.cleanup).not.toHaveBeenCalled();
   });
 
-  it('runs cleanup immediately on start', async () => {
+  it("runs cleanup immediately on start", async () => {
     const policy: RetentionPolicy = {
       enabled: true,
       maxAgeSeconds: 86400,
@@ -47,18 +53,18 @@ describe('RetentionManager', () => {
     manager.start();
 
     // Wait for immediate cleanup
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     expect(mockStorage.cleanup).toHaveBeenCalledWith(86400, undefined);
     expect(mockLogger.info).toHaveBeenCalledWith(
       expect.objectContaining({ deleted: 5 }),
-      'Cleanup completed'
+      "Cleanup completed"
     );
 
     manager.stop();
   });
 
-  it('schedules periodic cleanup', async () => {
+  it("schedules periodic cleanup", async () => {
     vi.useFakeTimers();
 
     const policy: RetentionPolicy = {
@@ -84,30 +90,30 @@ describe('RetentionManager', () => {
     vi.useRealTimers();
   });
 
-  it('handles cleanup errors gracefully', async () => {
+  it("handles cleanup errors gracefully", async () => {
     const policy: RetentionPolicy = {
       enabled: true,
       maxAgeSeconds: 3600,
       checkIntervalSeconds: 60,
     };
 
-    (mockStorage.cleanup as any).mockRejectedValue(new Error('Cleanup failed'));
+    (mockStorage.cleanup as any).mockRejectedValue(new Error("Cleanup failed"));
 
     const manager = new RetentionManager(mockStorage, policy, mockLogger);
     manager.start();
 
     // Wait for cleanup to run and fail
-    await new Promise(resolve => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(mockLogger.error).toHaveBeenCalledWith(
-      expect.objectContaining({ error: 'Cleanup failed' }),
-      'Cleanup failed'
+      expect.objectContaining({ error: "Cleanup failed" }),
+      "Cleanup failed"
     );
 
     manager.stop();
   });
 
-  it('stops periodic cleanup', async () => {
+  it("stops periodic cleanup", async () => {
     vi.useFakeTimers();
 
     const policy: RetentionPolicy = {
@@ -131,7 +137,7 @@ describe('RetentionManager', () => {
     vi.useRealTimers();
   });
 
-  it('supports force cleanup', async () => {
+  it("supports force cleanup", async () => {
     const policy: RetentionPolicy = {
       enabled: true,
       maxAgeSeconds: 86400,
@@ -149,7 +155,7 @@ describe('RetentionManager', () => {
     expect(mockStorage.cleanup).toHaveBeenCalledWith(86400, 1000);
   });
 
-  it('does not log if no traces deleted', async () => {
+  it("does not log if no traces deleted", async () => {
     const policy: RetentionPolicy = {
       enabled: true,
       checkIntervalSeconds: 60,
@@ -161,17 +167,17 @@ describe('RetentionManager', () => {
     manager.start();
 
     // Wait for cleanup to run
-    await new Promise(resolve => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
 
     // Should have "started" log but not "completed" log
     expect(mockLogger.info).toHaveBeenCalledWith(
       expect.any(Object),
-      'Retention manager started'
+      "Retention manager started"
     );
 
     // Filter for cleanup completed logs
     const cleanupLogs = (mockLogger.info as any).mock.calls.filter(
-      (call: any) => call[1] === 'Cleanup completed'
+      (call: any) => call[1] === "Cleanup completed"
     );
     expect(cleanupLogs).toHaveLength(0);
 
@@ -179,7 +185,7 @@ describe('RetentionManager', () => {
   });
 });
 
-describe('loadRetentionPolicy', () => {
+describe("loadRetentionPolicy", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
@@ -190,7 +196,7 @@ describe('loadRetentionPolicy', () => {
     process.env = originalEnv;
   });
 
-  it('loads default configuration', () => {
+  it("loads default configuration", () => {
     delete process.env.TRACEFORGE_RETENTION_ENABLED;
     delete process.env.TRACEFORGE_MAX_TRACE_AGE_DAYS;
     delete process.env.TRACEFORGE_MAX_TRACE_COUNT;
@@ -206,25 +212,25 @@ describe('loadRetentionPolicy', () => {
     });
   });
 
-  it('loads age-based policy', () => {
-    process.env.TRACEFORGE_MAX_TRACE_AGE_DAYS = '7';
+  it("loads age-based policy", () => {
+    process.env.TRACEFORGE_MAX_TRACE_AGE_DAYS = "7";
 
     const policy = loadRetentionPolicy();
 
     expect(policy.maxAgeSeconds).toBe(7 * 86400);
   });
 
-  it('loads count-based policy', () => {
-    process.env.TRACEFORGE_MAX_TRACE_COUNT = '10000';
+  it("loads count-based policy", () => {
+    process.env.TRACEFORGE_MAX_TRACE_COUNT = "10000";
 
     const policy = loadRetentionPolicy();
 
     expect(policy.maxCount).toBe(10000);
   });
 
-  it('loads combined policy', () => {
-    process.env.TRACEFORGE_MAX_TRACE_AGE_DAYS = '30';
-    process.env.TRACEFORGE_MAX_TRACE_COUNT = '50000';
+  it("loads combined policy", () => {
+    process.env.TRACEFORGE_MAX_TRACE_AGE_DAYS = "30";
+    process.env.TRACEFORGE_MAX_TRACE_COUNT = "50000";
 
     const policy = loadRetentionPolicy();
 
@@ -232,16 +238,16 @@ describe('loadRetentionPolicy', () => {
     expect(policy.maxCount).toBe(50000);
   });
 
-  it('can disable retention', () => {
-    process.env.TRACEFORGE_RETENTION_ENABLED = 'false';
+  it("can disable retention", () => {
+    process.env.TRACEFORGE_RETENTION_ENABLED = "false";
 
     const policy = loadRetentionPolicy();
 
     expect(policy.enabled).toBe(false);
   });
 
-  it('loads custom check interval', () => {
-    process.env.TRACEFORGE_CLEANUP_INTERVAL = '3600';
+  it("loads custom check interval", () => {
+    process.env.TRACEFORGE_CLEANUP_INTERVAL = "3600";
 
     const policy = loadRetentionPolicy();
 

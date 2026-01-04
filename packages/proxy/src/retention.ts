@@ -1,12 +1,12 @@
-import { storageCircuitBreaker } from './storage-metrics.js';
-import type { StorageBackend } from '@traceforge/shared';
+import { storageCircuitBreaker } from "./storage-metrics.js";
+import type { StorageBackend } from "@traceforge/shared";
 
 export type { StorageBackend };
 
 export interface RetentionPolicy {
   enabled: boolean;
-  maxAgeSeconds?: number;  // Delete traces older than this
-  maxCount?: number;        // Keep only the newest N traces
+  maxAgeSeconds?: number; // Delete traces older than this
+  maxCount?: number; // Keep only the newest N traces
   checkIntervalSeconds: number; // How often to run cleanup
 }
 
@@ -22,12 +22,12 @@ export class RetentionManager {
 
   start() {
     if (!this.policy.enabled) {
-      this.logger.info('Retention policy is disabled');
+      this.logger.info("Retention policy is disabled");
       return;
     }
 
     if (this.isRunning) {
-      this.logger.warn('Retention manager already running');
+      this.logger.warn("Retention manager already running");
       return;
     }
 
@@ -48,7 +48,7 @@ export class RetentionManager {
         maxCount: this.policy.maxCount,
         checkInterval: this.policy.checkIntervalSeconds,
       },
-      'Retention manager started'
+      "Retention manager started"
     );
   }
 
@@ -58,7 +58,7 @@ export class RetentionManager {
       this.timer = null;
     }
     this.isRunning = false;
-    this.logger.info('Retention manager stopped');
+    this.logger.info("Retention manager stopped");
   }
 
   private async runCleanup() {
@@ -67,7 +67,7 @@ export class RetentionManager {
 
       // Don't run cleanup if circuit breaker is open
       if (storageCircuitBreaker.isOpen()) {
-        this.logger.warn('Skipping cleanup - circuit breaker is open');
+        this.logger.warn("Skipping cleanup - circuit breaker is open");
         return;
       }
 
@@ -85,11 +85,11 @@ export class RetentionManager {
             durationMs: duration,
             policy: this.policy,
           },
-          'Cleanup completed'
+          "Cleanup completed"
         );
       }
     } catch (error: any) {
-      this.logger.error({ error: error.message }, 'Cleanup failed');
+      this.logger.error({ error: error.message }, "Cleanup failed");
     }
   }
 
@@ -109,9 +109,12 @@ export function loadRetentionPolicy(): RetentionPolicy {
   const maxCount = process.env.TRACEFORGE_MAX_TRACE_COUNT;
 
   return {
-    enabled: process.env.TRACEFORGE_RETENTION_ENABLED !== 'false',
+    enabled: process.env.TRACEFORGE_RETENTION_ENABLED !== "false",
     maxAgeSeconds: maxAgeDays ? parseInt(maxAgeDays, 10) * 86400 : undefined,
     maxCount: maxCount ? parseInt(maxCount, 10) : undefined,
-    checkIntervalSeconds: parseInt(process.env.TRACEFORGE_CLEANUP_INTERVAL || '21600', 10), // Default: 6 hours
+    checkIntervalSeconds: parseInt(
+      process.env.TRACEFORGE_CLEANUP_INTERVAL || "21600",
+      10
+    ), // Default: 6 hours
   };
 }
