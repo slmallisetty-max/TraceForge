@@ -1,4 +1,12 @@
-import { writeFile, mkdir, readdir, stat, unlink, readFile } from "fs/promises";
+import {
+  writeFile,
+  mkdir,
+  readdir,
+  stat,
+  unlink,
+  readFile,
+  rename,
+} from "fs/promises";
 import { resolve } from "path";
 import { existsSync } from "fs";
 import type {
@@ -7,6 +15,7 @@ import type {
   StorageBackend,
   ListOptions,
 } from "@traceforge/shared";
+import { storageLogger } from "@traceforge/shared";
 import { redactTrace } from "./redaction.js";
 import { storageCircuitBreaker } from "./storage-metrics.js";
 
@@ -29,7 +38,7 @@ export class FileStorageBackend implements StorageBackend {
         "Storage circuit breaker is open - too many consecutive failures. " +
           "Trace saving is temporarily disabled to prevent cascading failures."
       );
-      console.error("[CIRCUIT BREAKER OPEN]", error.message);
+      storageLogger.error({ error: error.message }, "Circuit breaker open");
       throw error;
     }
 
@@ -57,8 +66,16 @@ export class FileStorageBackend implements StorageBackend {
       // Sort keys for git-friendly diffs
       const sortedTrace = sortKeys(redactedTrace);
 
-      // Write to file with pretty formatting
-      await writeFile(filepath, JSON.stringify(sortedTrace, null, 2), "utf-8");
+      // Write to temp file first, then atomic rename to prevent race conditions
+      const tempFilepath = `${filepath}.tmp.${Date.now()}`;
+      await writeFile(
+        tempFilepath,
+        JSON.stringify(sortedTrace, null, 2),
+        "utf-8"
+      );
+
+      // Atomic rename - guaranteed by OS to be safe for concurrent writes
+      await rename(tempFilepath, filepath);
 
       // Record success
       storageCircuitBreaker.recordSuccess();
@@ -69,13 +86,16 @@ export class FileStorageBackend implements StorageBackend {
       storageCircuitBreaker.recordFailure();
 
       // Log detailed error
-      console.error("[STORAGE ERROR] Failed to save trace:", {
-        traceId: trace.id,
-        error: errorObj.message,
-        consecutiveFailures:
-          storageCircuitBreaker.getMetrics().consecutiveFailures,
-        circuitOpen: storageCircuitBreaker.getMetrics().circuitOpen,
-      });
+      storageLogger.error(
+        {
+          traceId: trace.id,
+          error: errorObj.message,
+          consecutiveFailures:
+            storageCircuitBreaker.getMetrics().consecutiveFailures,
+          circuitOpen: storageCircuitBreaker.getMetrics().circuitOpen,
+        },
+        "Failed to save trace"
+      );
 
       // Re-throw to let caller handle (don't silently fail)
       throw errorObj;
@@ -98,7 +118,7 @@ export class FileStorageBackend implements StorageBackend {
       const content = await readFile(resolve(TRACES_DIR, traceFile), "utf-8");
       return JSON.parse(content);
     } catch (error) {
-      console.error("[STORAGE ERROR] Failed to get trace:", error);
+      storageLogger.error({ error, id }, "Failed to get trace");
       return null;
     }
   }
@@ -144,7 +164,7 @@ export class FileStorageBackend implements StorageBackend {
 
       return traces;
     } catch (error) {
-      console.error("[STORAGE ERROR] Failed to list traces:", error);
+      storageLogger.error({ error }, "Failed to list traces");
       return [];
     }
   }
@@ -162,7 +182,7 @@ export class FileStorageBackend implements StorageBackend {
         await unlink(resolve(TRACES_DIR, traceFile));
       }
     } catch (error) {
-      console.error("[STORAGE ERROR] Failed to delete trace:", error);
+      storageLogger.error({ error, id }, "Failed to delete trace");
       throw error;
     }
   }
@@ -176,7 +196,7 @@ export class FileStorageBackend implements StorageBackend {
       const files = await readdir(TRACES_DIR);
       return files.filter((f) => f.endsWith(".json")).length;
     } catch (error) {
-      console.error("[STORAGE ERROR] Failed to count traces:", error);
+      storageLogger.error({ error }, "Failed to count traces");
       return 0;
     }
   }
@@ -237,7 +257,7 @@ export class FileStorageBackend implements StorageBackend {
 
       return toDelete.length;
     } catch (error) {
-      console.error("[STORAGE ERROR] Failed to cleanup traces:", error);
+      storageLogger.error({ error }, "Failed to cleanup traces");
       throw error;
     }
   }
@@ -256,7 +276,7 @@ export class FileStorageBackend implements StorageBackend {
 
       await writeFile(filepath, JSON.stringify(test, null, 2), "utf-8");
     } catch (error) {
-      console.error("[STORAGE ERROR] Failed to save test:", error);
+      storageLogger.error({ error, testId: test.id }, "Failed to save test");
       throw error;
     }
   }
@@ -277,7 +297,7 @@ export class FileStorageBackend implements StorageBackend {
       const content = await readFile(resolve(TESTS_DIR, testFile), "utf-8");
       return JSON.parse(content);
     } catch (error) {
-      console.error("[STORAGE ERROR] Failed to get test:", error);
+      storageLogger.error({ error, id }, "Failed to get test");
       return null;
     }
   }
@@ -305,7 +325,7 @@ export class FileStorageBackend implements StorageBackend {
 
       return tests;
     } catch (error) {
-      console.error("[STORAGE ERROR] Failed to list tests:", error);
+      storageLogger.error({ error }, "Failed to list tests");
       return [];
     }
   }
@@ -323,7 +343,7 @@ export class FileStorageBackend implements StorageBackend {
         await unlink(resolve(TESTS_DIR, testFile));
       }
     } catch (error) {
-      console.error("[STORAGE ERROR] Failed to delete test:", error);
+      storageLogger.error({ error, id }, "Failed to delete test");
       throw error;
     }
   }

@@ -1,49 +1,68 @@
 # TraceForge.baseline
 
-> Local-first AI debugging platform that captures, inspects, and tests LLM interactions
+> **TraceForge records, replays, and verifies AI executions deterministically.**
 
 [![Status](https://img.shields.io/badge/status-V2%20Complete-brightgreen)]()
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)]()
 
-## Overview
+## What is TraceForge?
 
-TraceForge.baseline helps developers debug AI applications by:
-- 🔍 **Intercepting and logging** all LLM API calls
-- 🤖 **Multi-provider support** (OpenAI, Anthropic Claude, Google Gemini, Ollama)
-- 📊 **Visualizing traces** in a web interface with streaming support
-- 🔄 **Side-by-side comparison** with deep diff view and similarity scoring
-- ✅ **Creating deterministic tests** from captured traces
-- 🧪 **11 assertion types** including semantic assertions (NEW in 2026 Q1!)
-  - Traditional: exact, contains, regex, fuzzy, JSON path, latency, tokens
-  - **Semantic**: meaning-based validation using embeddings
-- 📈 **Analytics dashboard** with 6 metrics, timeline charts, and model distribution
-- ⚙️ **Web-based config editor** with real-time validation
-- 🏃 **Parallel test execution** with fixtures, watch mode, and JUnit XML reporting
-- 🔌 **VS Code extension** with TreeView, commands, and YAML snippets
-- 🎯 **Provider auto-detection** from model name (no config changes needed)
-- 🔒 **100% local-first** - all data stays on your machine (zero cloud)
-- ⚡ **Auto-refreshing timeline** (5 second intervals)
-- 🌙 **Dark mode UI** built with React + TailwindCSS
-- 🎬 **VCR mode** - record/replay for deterministic, offline, cost-free testing
+**TraceForge is the execution record & replay layer for AI systems.**
+
+It guarantees that no AI behavior change reaches production without a recorded execution and verified replay.
+
+### Core Guarantee
+
+- **Record** every AI execution with full context
+- **Replay** executions deterministically without live API calls
+- **Verify** behavior changes explicitly in CI/CD
+- **Enforce** reproducibility at build time
+
+### Why This Matters
+
+AI systems are non-deterministic by default. TraceForge makes them:
+
+- ✅ **Reproducible** - Replay any execution offline
+- ✅ **Verifiable** - Assert on AI outputs with 11 assertion types
+- ✅ **Auditable** - Full execution history with diffs
+- ✅ **Enforceable** - CI fails on missing/changed executions
+
+### Key Capabilities
+
+- 🎬 **Execution Snapshots (VCR)** - Record/replay with strict CI mode
+- 🔍 **Execution Inspector** - Web UI for browsing and comparing executions
+- ✅ **Verification Rules** - 11 assertion types including semantic validation
+- 🚫 **CI Enforcement** - Hard fail on unverified behavior changes
+- 🤖 **Multi-Provider** - OpenAI, Anthropic, Google, Ollama
+- 🔒 **Local-First** - Zero cloud dependencies, all data on disk
 
 ## Architecture
 
-- **Proxy Server** (port 8787) - Fastify-based multi-provider proxy that captures traffic
-  - OpenAI, Anthropic Claude, Google Gemini, Ollama support
-  - Automatic provider detection from model name
-  - Unified trace format across all providers
-- **Web API** (port 3001) - Fastify REST API serving trace and test data
-- **Web UI** (port 5173) - React + Vite frontend with real-time timeline, diff view, and dashboard
-- **CLI Tool** - Command-line interface for traces and tests with parallel execution
-- **VS Code Extension** - TreeView, commands, and snippets for test management
-- **Shared Package** - TypeScript types and Zod schemas used across all packages
+**TraceForge operates as an execution layer between your application and AI providers:**
+
+```
+Your App → TraceForge Proxy → AI Provider (OpenAI/Anthropic/Google/Ollama)
+              ↓
+         Execution Record
+              ↓
+         Replay Engine (CI)
+              ↓
+         Verification Rules
+```
+
+### Components
+
+- **Replay Engine** (port 8787) - Intercepts AI calls, records executions, enforces replay in CI
+- **Execution Inspector** (port 5173) - Web UI for browsing execution history and diffs
+- **Enforcement CLI** - Validates executions against verification rules, exits non-zero on violations
+- **VS Code Extension** - Manage execution snapshots and verification rules from your editor
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - pnpm 8+
 
 ### Installation & Start (ONE Command!)
@@ -57,11 +76,13 @@ npx pnpm dev
 ```
 
 **That's it!** ✅ All services running:
+
 - 🔵 Proxy: http://localhost:8787
 - 🟣 API: http://localhost:3001
 - 🟢 UI: http://localhost:5173
 
 **Alternative options:**
+
 ```bash
 # PowerShell script with checks
 .\dev.ps1
@@ -70,81 +91,103 @@ npx pnpm dev
 docker-compose up
 ```
 
-### Usage
+### Local Development Workflow
 
-1. **Configure your app to use the proxy:**
+1. **Intercept AI executions:**
+
    ```bash
    export OPENAI_BASE_URL=http://localhost:8787/v1
    export OPENAI_API_KEY=your-key
-   export ANTHROPIC_API_KEY=your-anthropic-key  # Optional
-   export GEMINI_API_KEY=your-gemini-key        # Optional
    ```
 
-2. **Run your AI application** - Traces are automatically captured
-   - Works with any provider: OpenAI, Claude, Gemini, or Ollama
-   - Provider is auto-detected from model name
+2. **Record execution snapshots:**
 
-3. **View traces:**
-   - Web UI: http://localhost:3001
-   - Dashboard: http://localhost:3001/dashboard
-   - CLI: `npx pnpm --filter @traceforge/cli start trace list`
-
-4. **Compare traces:**
-   - Click "Compare" button in web UI to see side-by-side diff
-
-5. **Create tests from traces:**
-   - Click "Save as Test" in the web UI
-   - Or use CLI: `npx pnpm --filter @traceforge/cli start test create-from-trace <trace-id>`
-
-6. **Run tests:**
    ```bash
-   # Run all tests (parallel by default)
-   npx pnpm --filter @traceforge/cli start test run
-
-   # Run with JUnit XML output
-   npx pnpm --filter @traceforge/cli start test run --junit
-
-   # Watch mode
-   npx pnpm --filter @traceforge/cli start test run --watch
+   # Run your application with recording enabled
+   TRACEFORGE_VCR_MODE=record npm start
    ```
 
-7. **VCR Mode for deterministic testing:**
+   All AI executions are saved to `.ai-tests/cassettes/`
+
+3. **Create verification rules:**
+
    ```bash
-   # Check VCR status
-   npx pnpm --filter @traceforge/cli start vcr status
-
-   # Record cassettes (capture live API responses)
-   TRACEFORGE_VCR_MODE=record npx pnpm --filter @traceforge/cli start test run
-
-   # Replay from cassettes (no API calls, no API keys needed!)
-   TRACEFORGE_VCR_MODE=replay npx pnpm --filter @traceforge/cli start test run
-
-   # Auto mode (replay if exists, otherwise record)
-   TRACEFORGE_VCR_MODE=auto npx pnpm --filter @traceforge/cli start test run
-
-   # Clean all cassettes
-   npx pnpm --filter @traceforge/cli start vcr clean --yes
+   # Create test from recorded execution
+   npx pnpm --filter @traceforge/cli start test create-from-trace <trace-id>
    ```
 
-   **VCR Mode Benefits:**
-   - ✅ Deterministic tests (same response every time)
-   - ✅ No API keys needed in CI
-   - ✅ Zero API costs during testing
+4. **Commit snapshots to version control:**
+   ```bash
+   git add .ai-tests/
+   git commit -m "Add execution snapshots for feature X"
+   ```
+
+### CI/CD Enforcement (The Critical Part)
+
+**This is what makes TraceForge unavoidable:**
+
+```yaml
+# .github/workflows/ci.yml
+env:
+  TRACEFORGE_VCR_MODE: strict # ← Hard fail on missing snapshots
+
+steps:
+  - name: Verify AI Executions
+    run: npx pnpm --filter @traceforge/cli start test run
+```
+
+**Strict mode guarantees:**
+
+- ✅ Live AI calls are **forbidden** in CI
+- ✅ Missing execution snapshot = **build failure**
+- ✅ Changed AI output = **explicit diff** (requires approval)
+- ✅ No bypass, no warnings, no "best effort"
+
+This forces:
+
+1. Snapshot commitment before merge
+2. Reproducible AI behavior
+3. Reviewer approval for behavior changes
+
+### Inspection & Debugging (Optional)
+
+The Web UI is for **inspection**, not the primary workflow:
+
+- Browse execution history: http://localhost:5173
+- Compare executions: Side-by-side diffs
+- Review failed verifications: See what changed
+
+### VCR Modes
+
+| Mode         | Behavior                                     | Use Case              |
+| ------------ | -------------------------------------------- | --------------------- |
+| `off`        | No recording/replay                          | Local development     |
+| `record`     | Record all executions                        | Creating snapshots    |
+| `replay`     | Replay from snapshots, error on miss         | Local verification    |
+| `auto`       | Replay if exists, else record                | Flexible development  |
+| **`strict`** | **Replay only, forbid recording, hard fail** | **CI/CD enforcement** |
+
+**Strict mode usage:**
+
+```bash
+# CI environment
+export TRACEFORGE_VCR_MODE=strict
+npm test  # Fails if ANY snapshot is missing or changed
    - ✅ Fast test execution (no network calls)
    - ✅ Contributor-friendly (works offline)
-   
+
    # Run with specific options
    npx pnpm --filter @traceforge/cli start test run --parallel --concurrency 10
-   
+
    # Watch mode for rapid development
    npx pnpm --filter @traceforge/cli start test run --watch
-   
+
    # Generate JUnit XML for CI/CD
    npx pnpm --filter @traceforge/cli start test run --junit results.xml
-   
+
    # Filter by tags
    npx pnpm --filter @traceforge/cli start test run --tag smoke integration
-   ```
+```
 
 ## Project Structure
 
@@ -210,7 +253,7 @@ assertions:
     expected: "Paris is the capital of France"
     threshold: 0.85
     description: "Should indicate Paris is France's capital"
-  
+
   # Detect contradictions
   - type: semantic-contradiction
     forbidden:
@@ -221,6 +264,7 @@ assertions:
 ```
 
 **Quick Start:**
+
 - Set `OPENAI_API_KEY` environment variable
 - Use `semantic` for meaning-based matching
 - Use `semantic-contradiction` to catch forbidden statements
@@ -241,6 +285,7 @@ Install the TraceForge.baseline extension for an integrated development experien
 ## ⚠️ Storage Limitations & Production Considerations
 
 **Current file-based storage is optimized for:**
+
 - ✅ Development and testing environments
 - ✅ Single-server deployments
 - ✅ Up to 10,000 traces (approx 500MB)
@@ -249,12 +294,14 @@ Install the TraceForge.baseline extension for an integrated development experien
 **For production use at scale, consider:**
 
 ### Storage Limits
+
 - **No automatic rotation**: Directory grows indefinitely without manual cleanup
 - **No indexing**: Listing traces becomes slow with >1000 files (O(n) complexity)
 - **No concurrency control**: Race conditions possible with multiple proxy instances
 - **Disk exhaustion risk**: No built-in monitoring or alerts
 
 ### Recommended Actions for Scale
+
 1. **Monitor disk usage**: Set up alerts when `.ai-tests/traces/` exceeds 1GB
 2. **Implement cleanup**: Use `find` command or cron job to remove old traces:
    ```bash
@@ -265,16 +312,19 @@ Install the TraceForge.baseline extension for an integrated development experien
 4. **Watch metrics**: Monitor `/metrics` endpoint for storage failures
 
 ### Future Storage Backends (Roadmap)
+
 - **SQLite** (planned): Better indexing, ACID guarantees, manageable file size
 - **PostgreSQL** (future): Multi-tenant, horizontal scaling, full-text search
 - **S3/Cloud Storage** (future): Unlimited retention, archival, cost-effective
 
 ### Current Safeguards
+
 - ✅ **Circuit breaker**: Disables trace saving after 10 consecutive failures
 - ✅ **Metrics endpoint**: `/metrics` exposes storage health statistics
 - ✅ **Enhanced health checks**: `/health` monitors disk writability
 
 See [docs/review.md](docs/review.md) for comprehensive architectural analysis.
+
 - ➕ **Create tests** from traces with one click
 - 🎨 **YAML snippets** for test authoring (type `tf-test`)
 - 🔄 **Auto-refresh** traces and tests every 5 seconds

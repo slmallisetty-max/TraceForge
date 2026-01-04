@@ -1,8 +1,50 @@
-import { createHash } from 'crypto';
-import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
-import { join, dirname } from 'path';
-import { existsSync } from 'fs';
-import type { LLMRequest, LLMResponse, Cassette, VCRConfig, VCRMode } from '@traceforge/shared';
+import { createHash, createHmac } from "crypto";
+import { readdir, readFile, writeFile, mkdir } from "fs/promises";
+import { join, dirname } from "path";
+import { existsSync } from "fs";
+import type {
+  LLMRequest,
+  LLMResponse,
+  Cassette,
+  VCRConfig,
+  VCRMode,
+} from "@traceforge/shared";
+
+/**
+ * Default signature secret (should be overridden via config)
+ */
+const DEFAULT_SIGNATURE_SECRET = "traceforge-vcr-default-secret";
+
+/**
+ * Generate HMAC signature for cassette data
+ */
+function signCassette(
+  cassette: Omit<Cassette, "signature">,
+  secret: string
+): string {
+  const data = JSON.stringify({
+    cassette_version: cassette.cassette_version,
+    provider: cassette.provider,
+    request: cassette.request,
+    response: cassette.response,
+    recorded_at: cassette.recorded_at,
+  });
+  return createHmac("sha256", secret).update(data).digest("hex");
+}
+
+/**
+ * Verify cassette signature
+ */
+function verifyCassetteSignature(cassette: Cassette, secret: string): boolean {
+  if (!cassette.signature) {
+    // No signature present - cassette created before integrity feature
+    return true; // Allow for backward compatibility
+  }
+
+  const { signature, ...data } = cassette;
+  const expectedSignature = signCassette(data, secret);
+  return signature === expectedSignature;
+}
 
 /**
  * Build a stable signature for request matching
@@ -10,7 +52,7 @@ import type { LLMRequest, LLMResponse, Cassette, VCRConfig, VCRMode } from '@tra
 export function buildRequestSignature(
   provider: string,
   request: LLMRequest,
-  matchMode: 'exact' | 'fuzzy' = 'fuzzy'
+  matchMode: "exact" | "fuzzy" = "fuzzy"
 ): string {
   const parts: any[] = [provider, request.model];
 
@@ -27,17 +69,19 @@ export function buildRequestSignature(
   }
 
   // In exact mode, include all optional parameters
-  if (matchMode === 'exact') {
+  if (matchMode === "exact") {
     if (request.temperature !== undefined) parts.push(request.temperature);
     if (request.max_tokens !== undefined) parts.push(request.max_tokens);
     if (request.top_p !== undefined) parts.push(request.top_p);
-    if (request.frequency_penalty !== undefined) parts.push(request.frequency_penalty);
-    if (request.presence_penalty !== undefined) parts.push(request.presence_penalty);
+    if (request.frequency_penalty !== undefined)
+      parts.push(request.frequency_penalty);
+    if (request.presence_penalty !== undefined)
+      parts.push(request.presence_penalty);
     if (request.stop !== undefined) parts.push(JSON.stringify(request.stop));
   }
 
-  const signature = parts.join('|');
-  return createHash('sha256').update(signature).digest('hex');
+  const signature = parts.join("|");
+  return createHash("sha256").update(signature).digest("hex");
 }
 
 /**
@@ -52,12 +96,13 @@ export function getCassettePath(
 }
 
 /**
- * Find and load a cassette by signature
+ * Find and load a cassette by signature with integrity verification
  */
 export async function findCassette(
   cassettesDir: string,
   provider: string,
-  signature: string
+  signature: string,
+  signatureSecret?: string
 ): Promise<Cassette | null> {
   const cassettePath = getCassettePath(cassettesDir, provider, signature);
 
@@ -66,12 +111,20 @@ export async function findCassette(
   }
 
   try {
-    const content = await readFile(cassettePath, 'utf-8');
+    const content = await readFile(cassettePath, "utf-8");
     const cassette: Cassette = JSON.parse(content);
-    
+
     // Validate cassette version
     if (!cassette.cassette_version) {
-      throw new Error('Invalid cassette: missing version');
+      throw new Error("Invalid cassette: missing version");
+    }
+
+    // Verify cassette integrity if signature exists
+    const secret = signatureSecret || DEFAULT_SIGNATURE_SECRET;
+    if (!verifyCassetteSignature(cassette, secret)) {
+      throw new Error(
+        "Cassette integrity verification failed: signature mismatch"
+      );
     }
 
     return cassette;
@@ -81,7 +134,7 @@ export async function findCassette(
 }
 
 /**
- * Save a cassette to disk
+ * Save a cassette to disk with integrity signature
  */
 export async function saveCassette(
   cassettesDir: string,
@@ -90,10 +143,11 @@ export async function saveCassette(
   request: LLMRequest,
   responseStatus: number,
   responseHeaders: Record<string, string>,
-  responseBody: LLMResponse | { error: any }
+  responseBody: LLMResponse | { error: any },
+  signatureSecret?: string
 ): Promise<void> {
-  const cassette: Cassette = {
-    cassette_version: '1.0',
+  const cassetteData: Omit<Cassette, "signature"> = {
+    cassette_version: "1.0",
     provider,
     request,
     response: {
@@ -104,6 +158,15 @@ export async function saveCassette(
     recorded_at: new Date().toISOString(),
   };
 
+  // Generate HMAC signature for integrity
+  const secret = signatureSecret || DEFAULT_SIGNATURE_SECRET;
+  const cassetteSignature = signCassette(cassetteData, secret);
+
+  const cassette: Cassette = {
+    ...cassetteData,
+    signature: cassetteSignature,
+  };
+
   const cassettePath = getCassettePath(cassettesDir, provider, signature);
   const cassetteDir = dirname(cassettePath);
 
@@ -112,7 +175,7 @@ export async function saveCassette(
     await mkdir(cassetteDir, { recursive: true });
   }
 
-  await writeFile(cassettePath, JSON.stringify(cassette, null, 2), 'utf-8');
+  await writeFile(cassettePath, JSON.stringify(cassette, null, 2), "utf-8");
 }
 
 /**
@@ -128,30 +191,47 @@ export class VCRLayer {
   /**
    * Check if a cassette exists and should be replayed
    */
-  async shouldReplay(provider: string, request: LLMRequest): Promise<Cassette | null> {
+  async shouldReplay(
+    provider: string,
+    request: LLMRequest
+  ): Promise<Cassette | null> {
     const mode = this.config.mode;
 
     // Off mode - never replay
-    if (mode === 'off') {
+    if (mode === "off") {
       return null;
     }
 
-    // Replay or auto mode - try to find cassette
-    if (mode === 'replay' || mode === 'auto') {
-      const signature = buildRequestSignature(provider, request, this.config.match_mode);
-      const cassette = await findCassette(this.config.cassettes_dir, provider, signature);
+    // Replay, auto, or strict mode - try to find cassette
+    if (mode === "replay" || mode === "auto" || mode === "strict") {
+      const signature = buildRequestSignature(
+        provider,
+        request,
+        this.config.match_mode
+      );
+      const cassette = await findCassette(
+        this.config.cassettes_dir,
+        provider,
+        signature,
+        this.config.signature_secret
+      );
 
       if (cassette) {
         return cassette;
       }
 
-      // In replay mode, missing cassette is an error
-      if (mode === 'replay') {
-        throw new Error(
-          `VCR replay miss: no cassette found for ${provider} request. ` +
-          `Signature: ${signature}. ` +
-          `Run with VCR_MODE=record to create cassettes.`
-        );
+      // In replay or strict mode, missing cassette is an error
+      if (mode === "replay" || mode === "strict") {
+        const errorMessage =
+          mode === "strict"
+            ? `STRICT CI MODE: Missing execution snapshot for ${provider} request. ` +
+              `Build failed. Signature: ${signature}. ` +
+              `Record snapshots locally with TRACEFORGE_VCR_MODE=record before committing.`
+            : `VCR replay miss: no cassette found for ${provider} request. ` +
+              `Signature: ${signature}. ` +
+              `Run with VCR_MODE=record to create cassettes.`;
+
+        throw new Error(errorMessage);
       }
     }
 
@@ -170,10 +250,23 @@ export class VCRLayer {
   ): Promise<void> {
     const mode = this.config.mode;
 
+    // Strict mode forbids recording - CI should never create new snapshots
+    if (mode === "strict") {
+      throw new Error(
+        "STRICT CI MODE: Recording is forbidden. " +
+          "Execution snapshots must be created locally and committed to version control. " +
+          "Set TRACEFORGE_VCR_MODE=record locally to create snapshots."
+      );
+    }
+
     // Only record in record or auto mode
-    if (mode === 'record' || mode === 'auto') {
-      const signature = buildRequestSignature(provider, request, this.config.match_mode);
-      
+    if (mode === "record" || mode === "auto") {
+      const signature = buildRequestSignature(
+        provider,
+        request,
+        this.config.match_mode
+      );
+
       await saveCassette(
         this.config.cassettes_dir,
         provider,
@@ -181,7 +274,8 @@ export class VCRLayer {
         request,
         responseStatus,
         responseHeaders,
-        responseBody
+        responseBody,
+        this.config.signature_secret
       );
     }
   }
@@ -198,7 +292,7 @@ export class VCRLayer {
       for (const provider of providers) {
         const providerDir = join(this.config.cassettes_dir, provider);
         const files = await readdir(providerDir);
-        const cassetteCount = files.filter(f => f.endsWith('.json')).length;
+        const cassetteCount = files.filter((f) => f.endsWith(".json")).length;
 
         if (cassetteCount > 0) {
           stats.push({ provider, count: cassetteCount });
@@ -216,13 +310,17 @@ export class VCRLayer {
  * Get default VCR configuration
  */
 export function getDefaultVCRConfig(): VCRConfig {
-  const mode = (process.env.TRACEFORGE_VCR_MODE || 'off') as VCRMode;
-  const matchMode = (process.env.TRACEFORGE_VCR_MATCH || 'fuzzy') as 'exact' | 'fuzzy';
-  const cassettesDir = process.env.TRACEFORGE_VCR_DIR || '.ai-tests/cassettes';
+  const mode = (process.env.TRACEFORGE_VCR_MODE || "off") as VCRMode;
+  const matchMode = (process.env.TRACEFORGE_VCR_MATCH || "fuzzy") as
+    | "exact"
+    | "fuzzy";
+  const cassettesDir = process.env.TRACEFORGE_VCR_DIR || ".ai-tests/cassettes";
+  const signatureSecret = process.env.TRACEFORGE_VCR_SECRET;
 
   return {
     mode,
     match_mode: matchMode,
     cassettes_dir: cassettesDir,
+    signature_secret: signatureSecret,
   };
 }
