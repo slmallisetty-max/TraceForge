@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import staticFiles from "@fastify/static";
 import { join, resolve, dirname } from "path";
 import { readdir, readFile, writeFile, access } from "fs/promises";
@@ -53,6 +54,19 @@ await fastify.register(cors, {
   origin: isDevelopment ? "http://localhost:5173" : true,
 });
 
+// Register rate limiting to prevent DoS attacks
+await fastify.register(rateLimit, {
+  max: 100, // 100 requests per timeWindow
+  timeWindow: "1 minute", // per minute per IP
+  cache: 10000, // Cache up to 10k IPs
+  errorResponseBuilder: () => ({
+    error: {
+      message: "Rate limit exceeded. Please try again later.",
+      type: "rate_limit_error",
+    },
+  }),
+});
+
 // Register authentication
 const authConfig = loadAuthConfig();
 await registerAuth(fastify, authConfig);
@@ -73,10 +87,21 @@ fastify.post<{ Body: { username: string; password: string } }>(
   async (request, reply) => {
     const { username, password } = request.body;
 
-    // Simple validation (replace with real auth in production)
-    const validUser = process.env.TRACEFORGE_USERNAME || "admin";
-    const validPass = process.env.TRACEFORGE_PASSWORD || "changeme";
+    // Require credentials from environment - no defaults for security
+    const validUser = process.env.TRACEFORGE_USERNAME;
+    const validPass = process.env.TRACEFORGE_PASSWORD;
 
+    if (!validUser || !validPass) {
+      fastify.log.error(
+        "TRACEFORGE_USERNAME and TRACEFORGE_PASSWORD environment variables must be set"
+      );
+      return reply.code(500).send({
+        error:
+          "Server configuration error. Authentication credentials not configured.",
+      });
+    }
+
+    // TODO: Replace with bcrypt/argon2 password hashing for production
     if (username === validUser && password === validPass) {
       const token = fastify.jwt.sign(
         { sub: username, role: "admin" },
@@ -496,17 +521,21 @@ const start = async () => {
     const port = parseInt(process.env.PORT || process.env.WEB_PORT || "3001");
     await fastify.listen({ port, host: "0.0.0.0" });
 
-    console.log(
-      `\n🚀 TraceForge Web ${isDevelopment ? "(Development)" : "(Production)"}`
+    fastify.log.info(
+      {
+        port,
+        mode: isDevelopment ? "development" : "production",
+        apiUrl: `http://localhost:${port}/api`,
+        uiUrl: isDevelopment
+          ? "http://localhost:5173"
+          : `http://localhost:${port}`,
+      },
+      "TraceForge Web server started"
     );
-    console.log(`📊 API: http://localhost:${port}/api`);
+
     if (isDevelopment) {
-      console.log(`🎨 UI:  http://localhost:5173 (Vite dev server)`);
-      console.log(`💡 Tip: Run 'pnpm dev' from root to start all services`);
-    } else {
-      console.log(`🎨 UI:  http://localhost:${port}`);
+      fastify.log.info("Development mode: UI served by Vite on port 5173");
     }
-    console.log();
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

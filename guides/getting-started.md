@@ -1,6 +1,14 @@
-# Getting Started After Implementation
+# Getting Started with TraceForge
 
-This guide helps you activate the new security and operational features.
+**TraceForge is the execution record & replay layer for AI systems.**
+
+This guide shows you how to:
+
+1. Record AI executions
+2. Create verification rules
+3. Enforce reproducibility in CI
+
+---
 
 ## Quick Start
 
@@ -10,50 +18,94 @@ This guide helps you activate the new security and operational features.
 npx pnpm install
 ```
 
-This installs new dependencies:
-- `husky` - Git hooks manager
-- `lint-staged` - Run linters on staged files
-
-### 2. Initialize Git Hooks
+### 2. Start the Replay Engine
 
 ```bash
-npx pnpm prepare
+npx pnpm dev
 ```
 
-This sets up pre-commit hooks that:
-- Run linting on staged files
-- Block commits containing trace files
-- Warn about sensitive data
+This starts:
 
-### 3. Rebuild Packages
+- Replay Engine (port 8787) - Intercepts AI calls
+- Execution Inspector (port 5173) - Browse execution history
+
+### 3. Configure Your Application
+
+Point your app to the replay engine:
 
 ```bash
-npx pnpm build
+export OPENAI_BASE_URL=http://localhost:8787/v1
+export OPENAI_API_KEY=your-key
 ```
 
-This compiles:
-- Redaction utilities in proxy package
-- Migration utilities in shared package
-- Updated schemas with version fields
-
-### 4. Verify Installation
+### 4. Record Your First Execution
 
 ```bash
-# Check that hooks are installed
-ls -la .husky/
+# Enable recording mode
+export TRACEFORGE_VCR_MODE=record
 
-# Verify lint-staged config
-cat package.json | grep lint-staged
-
-# Test the build
-npx pnpm typecheck
+# Run your application
+npm start
 ```
+
+Execution snapshots are saved to `.ai-tests/cassettes/`
+
+---
+
+## Core Workflow
+
+### Step 1: Record Execution Snapshots
+
+```bash
+TRACEFORGE_VCR_MODE=record npm start
+```
+
+All AI interactions are captured with full request/response data.
+
+### Step 2: Create Verification Rules
+
+```bash
+npx pnpm --filter @traceforge/cli start test create-from-trace <trace-id>
+```
+
+This generates a `.yaml` test file with assertions.
+
+### Step 3: Verify Locally
+
+```bash
+TRACEFORGE_VCR_MODE=replay npm test
+```
+
+Tests replay from snapshots (no live API calls).
+
+### Step 4: Commit Snapshots
+
+```bash
+git add .ai-tests/
+git commit -m "Add execution snapshots for feature X"
+```
+
+### Step 5: Enforce in CI
+
+```yaml
+# .github/workflows/ci.yml
+env:
+  TRACEFORGE_VCR_MODE: strict # ← Hard fail on missing snapshots
+
+steps:
+  - run: npm test
+```
+
+Now your CI **cannot pass** without committed execution snapshots.
+
+---
 
 ## Features Now Active
 
 ### ✅ Automatic Redaction
 
 Traces automatically redact:
+
 - API keys and tokens
 - Authorization headers
 - Email addresses
@@ -66,11 +118,13 @@ Traces automatically redact:
 ### ✅ Pre-commit Protection
 
 Git will block commits containing:
+
 - `.ai-tests/traces/` files
 - Any `trace-*.json` files
 - Files matching `*.trace.json`
 
 To commit traces intentionally (not recommended):
+
 ```bash
 git commit --no-verify
 ```
@@ -78,6 +132,7 @@ git commit --no-verify
 ### ✅ Schema Versioning
 
 All new traces include:
+
 ```json
 {
   "schema_version": "1.0.0",
@@ -90,6 +145,7 @@ Old traces are automatically migrated when read.
 ### ✅ CI/CD Pipeline
 
 Push to GitHub to trigger:
+
 - Linting and type checking
 - Build verification
 - Unit tests
@@ -101,11 +157,13 @@ Push to GitHub to trigger:
 ### Test Automatic Redaction
 
 1. Start the proxy:
+
    ```bash
    npx pnpm dev
    ```
 
 2. Make a request with sensitive data:
+
    ```bash
    curl -X POST http://localhost:8787/v1/chat/completions \
      -H "Authorization: Bearer sk-test-my-secret-key" \
@@ -119,22 +177,26 @@ Push to GitHub to trigger:
    ```
 
 3. Check the saved trace:
+
    ```bash
    cat .ai-tests/traces/*.json
    ```
 
    You should see:
+
    - `"authorization": "[REDACTED]"`
    - Email replaced with `[REDACTED]`
 
 ### Test Pre-commit Hook
 
 1. Try to stage a trace file:
+
    ```bash
    git add .ai-tests/traces/*.json
    ```
 
 2. Try to commit:
+
    ```bash
    git commit -m "test commit"
    ```
@@ -144,20 +206,20 @@ Push to GitHub to trigger:
 ### Test Schema Versioning
 
 ```typescript
-import { migrateTrace, needsMigration } from '@traceforge/shared';
+import { migrateTrace, needsMigration } from "@traceforge/shared";
 
 // Load an old trace
-const oldTrace = require('./.ai-tests/traces/old-trace.json');
+const oldTrace = require("./.ai-tests/traces/old-trace.json");
 
 // Check if it needs migration
 if (needsMigration(oldTrace)) {
-  console.log('Trace needs migration');
-  
+  console.log("Trace needs migration");
+
   // Migrate it
   const { trace, result } = migrateTrace(oldTrace);
-  
-  console.log('Migrated from', result.originalVersion, 'to', result.newVersion);
-  console.log('Warnings:', result.warnings);
+
+  console.log("Migrated from", result.originalVersion, "to", result.newVersion);
+  console.log("Warnings:", result.warnings);
 }
 ```
 
@@ -186,7 +248,7 @@ Create or edit `traceforge.config.json`:
 In your code:
 
 ```typescript
-import { Redactor } from './redaction';
+import { Redactor } from "./redaction";
 
 const redactor = new Redactor({ enabled: false });
 ```
@@ -218,6 +280,7 @@ ls dist/redaction.js
 ### CI Failing
 
 Common issues:
+
 - **Linting errors**: Run `npx pnpm lint` locally to fix
 - **Type errors**: Run `npx pnpm typecheck` to see issues
 - **Build failures**: Run `npx pnpm build` and fix errors
@@ -232,23 +295,20 @@ node scripts/migrate-traces.js  # (you'd need to create this)
 Or programmatically:
 
 ```typescript
-import { migrateTraces } from '@traceforge/shared';
-import { readdir, readFile, writeFile } from 'fs/promises';
+import { migrateTraces } from "@traceforge/shared";
+import { readdir, readFile, writeFile } from "fs/promises";
 
-const traceDir = '.ai-tests/traces';
+const traceDir = ".ai-tests/traces";
 const files = await readdir(traceDir);
 
 for (const file of files) {
-  if (file.endsWith('.json')) {
-    const content = await readFile(`${traceDir}/${file}`, 'utf-8');
+  if (file.endsWith(".json")) {
+    const content = await readFile(`${traceDir}/${file}`, "utf-8");
     const trace = JSON.parse(content);
-    
+
     const { trace: migrated } = migrateTrace(trace);
-    
-    await writeFile(
-      `${traceDir}/${file}`,
-      JSON.stringify(migrated, null, 2)
-    );
+
+    await writeFile(`${traceDir}/${file}`, JSON.stringify(migrated, null, 2));
   }
 }
 ```
@@ -258,6 +318,7 @@ for (const file of files) {
 ### 1. Review Traces Before Sharing
 
 Even with redaction:
+
 ```bash
 # Check a trace
 cat .ai-tests/traces/latest-trace.json | grep -i "REDACTED"
@@ -269,15 +330,17 @@ rg -i "sk-|password|secret" .ai-tests/traces/
 ### 2. Set Retention Limits
 
 In `traceforge.config.json`:
+
 ```json
 {
-  "max_trace_retention": 30  // Keep traces for 30 days
+  "max_trace_retention": 30 // Keep traces for 30 days
 }
 ```
 
 ### 3. Use Environment Variables
 
 Never hardcode API keys:
+
 ```bash
 # .env
 OPENAI_API_KEY=sk-your-key-here
@@ -303,6 +366,7 @@ tests:
 ### 5. Use CI for All PRs
 
 Enable GitHub Actions in repository settings:
+
 - Settings → Actions → Allow all actions
 
 ## Documentation Links
@@ -345,6 +409,7 @@ npx pnpm build
 ```
 
 The redaction and versioning features are in the code, so you'd need to:
+
 - Revert `packages/proxy/src/storage.ts`
 - Revert `packages/shared/src/schema.ts`
 
