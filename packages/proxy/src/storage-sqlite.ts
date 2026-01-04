@@ -1,6 +1,11 @@
 import Database from "better-sqlite3";
 import { resolve } from "path";
-import type { Trace, Test, StorageBackend, ListOptions } from "@traceforge/shared";
+import type {
+  Trace,
+  Test,
+  StorageBackend,
+  ListOptions,
+} from "@traceforge/shared";
 import { redactTrace } from "./redaction.js";
 
 export class SQLiteStorageBackend implements StorageBackend {
