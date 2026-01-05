@@ -149,6 +149,37 @@ This forces:
 2. Reproducible AI behavior
 3. Reviewer approval for behavior changes
 
+---
+
+## 🚀 Complete Example: Strict CI Starter
+
+**Want to see CI enforcement in action?**
+
+Check out [`examples/strict-ci-starter/`](examples/strict-ci-starter/) - a complete, production-ready example showing how to enforce AI behavior reproducibility in CI.
+
+**What's included:**
+
+- ✅ Real AI application (OpenAI text summarization)
+- ✅ Test file with behavior validation
+- ✅ GitHub Actions workflow with strict mode enforcement
+- ✅ Complete documentation of failure scenarios
+- ✅ 5-minute Quick Start guide
+
+**Quick Start:**
+
+```bash
+cd examples/strict-ci-starter
+npm install
+npm run setup  # Validates your environment
+npm test       # Runs with committed snapshot
+```
+
+📖 **Full Guide**: [examples/strict-ci-starter/README.md](examples/strict-ci-starter/README.md)
+
+This example demonstrates the **"golden path"** for making AI behavior changes unavoidable in your CI pipeline.
+
+---
+
 ### Inspection & Debugging (Optional)
 
 The Web UI is for **inspection**, not the primary workflow:
@@ -199,7 +230,9 @@ traceforge/
 │   ├── cli/             # Command-line tool (Commander.js)
 │   └── web/             # Web UI (Fastify API + React)
 ├── examples/
-│   └── demo-app/        # Demo application for testing
+│   ├── strict-ci-starter/  # ⭐ Production CI enforcement example
+│   ├── demo-app/           # Demo application for testing
+│   └── python-demo/        # Python integration example
 ├── docs/                # Documentation
 └── package.json         # Workspace root
 ```

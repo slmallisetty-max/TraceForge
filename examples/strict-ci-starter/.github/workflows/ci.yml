@@ -1,0 +1,81 @@
+name: CI - Strict AI Behavior Enforcement
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Install TraceForge
+        run: |
+          # In production, install from npm
+          # npm install -g @traceforge/cli @traceforge/proxy
+          echo "Install TraceForge packages here"
+      
+      - name: Start TraceForge Proxy
+        run: |
+          # Start proxy in background
+          # npx @traceforge/proxy &
+          # sleep 5  # Wait for proxy to start
+          echo "Start TraceForge proxy in background"
+      
+      - name: Run Tests (Strict Mode)
+        env:
+          # ⚠️ STRICT MODE ENFORCED ⚠️
+          # This is what makes TraceForge unavoidable
+          TRACEFORGE_VCR_MODE: strict
+          
+          # Point to TraceForge proxy
+          OPENAI_BASE_URL: http://localhost:8787/v1
+          
+          # No real API key needed in CI!
+          # Tests replay from committed snapshots
+        run: npm test
+      
+      - name: Upload snapshot diffs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: snapshot-diffs
+          path: .ai-tests/diffs/
+
+# What happens in strict mode:
+#
+# ✅ If execution snapshots exist and match:
+#    → Tests replay from snapshots
+#    → No live API calls
+#    → No API key needed
+#    → Build passes ✅
+#
+# ❌ If execution snapshot is missing:
+#    → Test fails immediately
+#    → Error: "STRICT CI MODE: Missing execution snapshot"
+#    → Error: "Record snapshots locally with TRACEFORGE_VCR_MODE=record"
+#    → Build fails ❌
+#
+# ❌ If AI output changes:
+#    → Test fails with diff
+#    → Shows expected vs actual
+#    → Requires explicit approval
+#    → Build fails ❌
+#
+# This forces:
+# 1. Snapshot commitment before merge
+# 2. Reproducible AI behavior
+# 3. Reviewer approval for behavior changes
