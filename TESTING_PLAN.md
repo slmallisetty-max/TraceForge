@@ -9,6 +9,7 @@
 ## Testing Philosophy
 
 Per next-phase.md:
+
 > "The only validation that matters now: Can a real team ship with this enabled for 30 days?"
 
 We need to validate **enforcement**, not just features.
@@ -18,11 +19,17 @@ We need to validate **enforcement**, not just features.
 ## Testing Categories
 
 ### 1. Unit Tests (Existing)
+
 ### 2. Integration Tests (Manual)
+
 ### 3. End-to-End Tests (Manual)
+
 ### 4. CI Enforcement Tests (Critical)
+
 ### 5. Provider Compatibility Tests
+
 ### 6. Performance/Load Tests
+
 ### 7. Security Tests
 
 ---
@@ -58,6 +65,7 @@ pnpm test:coverage
 ```
 
 **Action Items:**
+
 - [ ] Run all unit tests and verify they pass
 - [ ] Check test coverage percentage
 - [ ] Add missing tests for new features:
@@ -72,6 +80,7 @@ pnpm test:coverage
 ### Test: Complete Workflow - Record to Replay
 
 **Setup:**
+
 ```bash
 # Start TraceForge
 pnpm dev
@@ -80,6 +89,7 @@ pnpm dev
 **Test Steps:**
 
 #### Step 1: Intercept Live Calls
+
 ```bash
 export OPENAI_BASE_URL=http://localhost:8787/v1
 export OPENAI_API_KEY=<your-key>
@@ -99,6 +109,7 @@ client.chat.completions.create({
 **Expected:** Response logged, trace created
 
 #### Step 2: Record Execution Snapshot
+
 ```bash
 export TRACEFORGE_VCR_MODE=record
 
@@ -107,10 +118,12 @@ node test-script.js
 ```
 
 **Expected:**
+
 - Cassette created in `.ai-tests/cassettes/openai/`
 - Contains request + response + signature
 
 #### Step 3: Replay Without API Key
+
 ```bash
 export TRACEFORGE_VCR_MODE=replay
 unset OPENAI_API_KEY  # Remove real key
@@ -120,11 +133,13 @@ node test-script.js
 ```
 
 **Expected:**
+
 - Same response
 - No live API call
 - Works without API key
 
 #### Step 4: Test Strict Mode (Missing Cassette)
+
 ```bash
 rm -rf .ai-tests/cassettes/
 export TRACEFORGE_VCR_MODE=strict
@@ -134,11 +149,13 @@ node test-script.js
 ```
 
 **Expected:**
+
 - Script fails with exit code 1
 - Error: "STRICT CI MODE: Missing execution snapshot"
 - Clear instructions for recording
 
 #### Step 5: Test Strict Mode (No Recording)
+
 ```bash
 export TRACEFORGE_VCR_MODE=strict
 
@@ -147,6 +164,7 @@ export TRACEFORGE_VCR_MODE=strict
 ```
 
 **Expected:**
+
 - Recording attempt fails
 - Error: "STRICT CI MODE: Recording is forbidden"
 
@@ -156,12 +174,12 @@ export TRACEFORGE_VCR_MODE=strict
 
 ### Test Matrix
 
-| Provider | Record | Replay | Streaming | Cassette Signature |
-|----------|--------|--------|-----------|-------------------|
-| OpenAI | ⬜ | ⬜ | ⬜ | ⬜ |
-| Anthropic | ⬜ | ⬜ | ⬜ | ⬜ |
-| Google Gemini | ⬜ | ⬜ | ⬜ | ⬜ |
-| Ollama | ⬜ | ⬜ | ⬜ | ⬜ |
+| Provider      | Record | Replay | Streaming | Cassette Signature |
+| ------------- | ------ | ------ | --------- | ------------------ |
+| OpenAI        | ⬜     | ⬜     | ⬜        | ⬜                 |
+| Anthropic     | ⬜     | ⬜     | ⬜        | ⬜                 |
+| Google Gemini | ⬜     | ⬜     | ⬜        | ⬜                 |
+| Ollama        | ⬜     | ⬜     | ⬜        | ⬜                 |
 
 ### OpenAI Tests
 
@@ -230,6 +248,7 @@ pnpm --filter @traceforge/cli start test create
 Test each assertion:
 
 #### Traditional Assertions
+
 - [ ] **exact** - Exact string match
 - [ ] **contains** - Substring match
 - [ ] **regex** - Pattern match
@@ -239,6 +258,7 @@ Test each assertion:
 - [ ] **tokens** - Token count validation
 
 #### Semantic Assertions (NEW)
+
 - [ ] **semantic_similarity** - Meaning-based comparison
 - [ ] **semantic_contains** - Concept presence
 - [ ] **semantic_not_contains** - Concept absence
@@ -331,6 +351,7 @@ pnpm --filter @traceforge/cli start config set storage.backend sqlite
 ### Pages to Test
 
 #### Home/Timeline Page (/)
+
 - [ ] Trace list loads
 - [ ] Auto-refresh every 5 seconds
 - [ ] Filtering by status
@@ -339,18 +360,21 @@ pnpm --filter @traceforge/cli start config set storage.backend sqlite
 - [ ] Click trace opens detail
 
 #### Trace Detail Page (/trace/:id)
+
 - [ ] Full request/response display
 - [ ] Metadata display
 - [ ] "Save as Test" button works
 - [ ] "Compare" button available
 
 #### Compare Page (/compare/:id1/:id2)
+
 - [ ] Side-by-side diff view
 - [ ] Syntax highlighting
 - [ ] Similarity score
 - [ ] Added/removed/changed indicators
 
 #### Dashboard Page (/dashboard)
+
 - [ ] 6 metrics display correctly
 - [ ] Timeline chart
 - [ ] Model distribution chart
@@ -359,12 +383,14 @@ pnpm --filter @traceforge/cli start config set storage.backend sqlite
 - [ ] Success rate chart
 
 #### Config Page (/config)
+
 - [ ] Current config displays
 - [ ] Edit mode works
 - [ ] Validation errors shown
 - [ ] Save functionality
 
 #### Tests Page (/tests)
+
 - [ ] Test list
 - [ ] Run all tests
 - [ ] View test results
@@ -384,6 +410,7 @@ pnpm --filter @traceforge/cli start trace list
 ```
 
 **Verify:**
+
 - [ ] Traces saved to filesystem
 - [ ] Atomic writes working
 - [ ] No race conditions
@@ -398,6 +425,7 @@ pnpm --filter @traceforge/cli start trace list
 ```
 
 **Verify:**
+
 - [ ] Database created
 - [ ] Schema migrations work
 - [ ] Queries efficient
@@ -414,6 +442,7 @@ export TRACEFORGE_STORAGE_FALLBACK=true
 ```
 
 **Verify:**
+
 - [ ] Automatic failover
 - [ ] Retry logic
 - [ ] Metrics collected
@@ -537,35 +566,35 @@ on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
-      
+          node-version: "18"
+
       - name: Install
         run: npm install
-      
+
       - name: Test WITHOUT Snapshots (should fail)
         continue-on-error: true
         env:
           TRACEFORGE_VCR_MODE: strict
         run: npm test
         id: test_no_snapshots
-      
+
       - name: Verify Failure
         if: steps.test_no_snapshots.outcome == 'success'
-        run: exit 1  # Should have failed
-      
+        run: exit 1 # Should have failed
+
       - name: Record Snapshots
         env:
           TRACEFORGE_VCR_MODE: record
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: npm test
-      
+
       - name: Test WITH Snapshots (should pass)
         env:
           TRACEFORGE_VCR_MODE: strict
@@ -575,14 +604,17 @@ jobs:
 ### Test Scenarios
 
 1. **Scenario 1: Missing Snapshots**
+
    - PR without committed cassettes
    - Expected: Build fails with clear error
 
 2. **Scenario 2: Changed Output**
+
    - Modify cassette response
    - Expected: Test fails with diff
 
 3. **Scenario 3: New Test**
+
    - Add new test without snapshot
    - Expected: Build fails
 
@@ -610,16 +642,19 @@ jobs:
 ## 12. Error Handling Tests
 
 ### Network Errors
+
 - [ ] API timeout
 - [ ] Connection refused
 - [ ] DNS failure
 
 ### File System Errors
+
 - [ ] Disk full
 - [ ] Permission denied
 - [ ] Path doesn't exist
 
 ### Invalid Input
+
 - [ ] Malformed JSON
 - [ ] Invalid API response
 - [ ] Corrupted cassette
@@ -629,33 +664,39 @@ jobs:
 ## Testing Checklist
 
 ### Pre-Testing
+
 - [ ] All packages build successfully
 - [ ] All existing unit tests pass
 - [ ] Documentation is up to date
 
 ### Unit Testing
+
 - [ ] Run `pnpm test`
 - [ ] Check coverage > 80%
 - [ ] Add tests for new strict mode
 
 ### Integration Testing
+
 - [ ] Test all VCR modes
 - [ ] Test all providers
 - [ ] Test all assertion types
 - [ ] Test CLI commands
 
 ### End-to-End Testing
+
 - [ ] Complete workflow (Record → Commit → CI → Replay)
 - [ ] Strict CI mode in real GitHub Actions
 - [ ] Snapshot update workflow
 - [ ] PR review workflow
 
 ### Performance Testing
+
 - [ ] 1000+ traces
 - [ ] Concurrent operations
 - [ ] Large payloads
 
 ### Security Testing
+
 - [ ] Authentication
 - [ ] Rate limiting
 - [ ] Signature verification
@@ -666,21 +707,25 @@ jobs:
 ## Test Execution Order
 
 ### Phase 1: Validation (Days 1-2)
+
 1. ✅ Run all existing unit tests
 2. ✅ Fix any broken tests
 3. ✅ Add missing unit tests
 
 ### Phase 2: Integration (Days 3-4)
+
 4. Test VCR modes (off, record, replay, auto, strict)
 5. Test each provider (OpenAI, Anthropic, Google, Ollama)
 6. Test all assertion types
 
 ### Phase 3: End-to-End (Days 5-6)
+
 7. Complete workflow test
 8. Strict CI mode test in real GitHub Actions
 9. Snapshot update workflow
 
 ### Phase 4: Edge Cases (Day 7)
+
 10. Error handling
 11. Performance tests
 12. Security tests
@@ -724,6 +769,7 @@ As we test, document issues in this format:
 **Component:** VCR Layer
 **Description:** Strict mode should forbid recording but doesn't
 **Steps to Reproduce:**
+
 1. Set TRACEFORGE_VCR_MODE=strict
 2. Run test that would record
 3. Recording succeeds (should fail)

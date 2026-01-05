@@ -158,6 +158,7 @@ This forces:
 Check out [`examples/strict-ci-starter/`](examples/strict-ci-starter/) - a complete, production-ready example showing how to enforce AI behavior reproducibility in CI.
 
 **What's included:**
+
 - ✅ Real AI application (OpenAI text summarization)
 - ✅ Test file with behavior validation
 - ✅ GitHub Actions workflow with strict mode enforcement
@@ -165,6 +166,7 @@ Check out [`examples/strict-ci-starter/`](examples/strict-ci-starter/) - a compl
 - ✅ 5-minute Quick Start guide
 
 **Quick Start:**
+
 ```bash
 cd examples/strict-ci-starter
 npm install
