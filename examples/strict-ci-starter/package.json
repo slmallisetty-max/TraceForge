@@ -1,0 +1,24 @@
+{
+  "name": "traceforge-strict-ci-starter",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Example project showing TraceForge strict CI enforcement",
+  "main": "src/app.js",
+  "scripts": {
+    "test": "node test.js",
+    "dev": "node src/app.js",
+    "setup": "node setup.js",
+    "validate": "node validate-cassettes.js"
+  },
+  "keywords": [
+    "traceforge",
+    "ai",
+    "testing",
+    "ci"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "openai": "^4.0.0"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "signature": "e7a9f8d2c1b6e3a4",
+  "provider": "openai",
+  "model": "gpt-4o-mini",
+  "request": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise summarization assistant. Summarize the following text in exactly one sentence."
+      },
+      {
+        "role": "user",
+        "content": "TraceForge is an execution record and replay layer for AI systems. It captures every AI execution as a deterministic snapshot, allows you to replay those executions without hitting live APIs, and enforces reproducibility in CI environments. This makes AI behavior changes require explicit review and approval."
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 100
+  },
+  "response": {
+    "id": "chatcmpl-example123",
+    "object": "chat.completion",
+    "created": 1735689600,
+    "model": "gpt-4o-mini-2024-07-18",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "TraceForge is an execution record and replay layer for AI systems that captures executions as deterministic snapshots, enables replay without live API calls, and enforces reproducibility in CI to require explicit review of AI behavior changes."
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 87,
+      "completion_tokens": 45,
+      "total_tokens": 132
+    }
+  },
+  "metadata": {
+    "recorded_at": "2025-01-01T00:00:00.000Z",
+    "traceforge_version": "0.1.0",
+    "cassette_version": "1.0"
+  }
+}
