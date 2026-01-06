@@ -31,6 +31,7 @@ export interface LLMRequest {
   stop?: string | string[];
   stream?: boolean;
   n?: number;
+  seed?: number; // OpenAI seed for deterministic outputs
   [key: string]: unknown;
 }
 
