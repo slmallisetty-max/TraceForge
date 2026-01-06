@@ -1,5 +1,70 @@
 # TraceForge Documentation
 
+## 🚀 Quick Start
+
+**New to TraceForge?** Start here:
+
+1. **[Getting Started](./getting-started.md)** - Installation & first test
+2. **[Strict CI Starter Example](../examples/strict-ci-starter/README.md)** - See it in action
+
+## 📖 User Guides
+
+### Essential Guides
+
+- **[Getting Started](./getting-started.md)** - Installation, setup, first test
+- **[CLI Reference](./cli.md)** - All command-line tools
+- **[API Reference](./API.md)** - HTTP API documentation
+
+### VCR Mode (Deterministic Testing)
+
+- **[VCR Usage Guide](./VCR_USAGE.md)** - Record/replay AI responses
+- **[VCR Quick Reference](./VCR_QUICK_REFERENCE.md)** - Commands & env vars
+- **[CI Enforcement](./CI_ENFORCEMENT.md)** - Mandatory testing in CI
+
+### Testing & Assertions
+
+- **[Assertions Guide](./assertions.md)** - All assertion types
+- **[Semantic Assertions](./SEMANTIC_ASSERTIONS_QUICK_START.md)** - Meaning-based tests
+- **[Baseline Format](./baseline-format.md)** - Test file format
+
+### Configuration
+
+- **[Environment Variables](./ENVIRONMENT_VARIABLES.md)** - All configuration options
+- **[Trace Format](./trace-format.md)** - Trace file structure
+- **[Migrations](./migrations.md)** - Schema versioning
+
+## 🏗️ Architecture Documentation
+
+For developers and contributors:
+
+- **[Architecture Review](../docs/architecture-review.md)** - System design analysis
+- **[Authentication](../docs/AUTHENTICATION.md)** - Auth implementation
+
+## 📦 Examples
+
+- **[strict-ci-starter/](../examples/strict-ci-starter/)** - ⭐ **Production CI setup**
+- **[demo-app/](../examples/demo-app/)** - Basic integration example
+
+---
+
+**Quick Command Reference:**
+
+```bash
+# Start proxy
+traceforge start
+
+# Run tests
+traceforge test run
+
+# Record cassettes
+TRACEFORGE_VCR_MODE=record traceforge test run
+
+# CI mode (strict enforcement)
+TRACEFORGE_VCR_MODE=strict npm test
+```
+
+See [CLI Reference](./cli.md) for all commands.
+
 Welcome to the TraceForge documentation! This guide will help you find what you need.
 
 ---
@@ -19,11 +84,13 @@ New to TraceForge? Start here:
 ### Core Concepts
 
 - **[Assertions](./assertions.md)** - Deep dive on all 8 assertion types
+
   - Exact match, contains, regex, semantic, JSON schema, JSON subset, latency, no-refusal
   - Weights and scoring
   - Best practices
 
 - **[Baseline Format](./baseline-format.md)** - Test file structure
+
   - YAML test definitions
   - Assertion syntax
   - Fixtures and variables
@@ -36,12 +103,14 @@ New to TraceForge? Start here:
 ### Advanced Features
 
 - **[VCR Usage](./VCR_USAGE.md)** - Record/replay for deterministic testing
+
   - Recording cassettes
   - Replay mode
   - Auto mode (smart fallback)
   - Match strategies (exact, fuzzy)
 
 - **[VCR Quick Reference](./VCR_QUICK_REFERENCE.md)** - VCR mode cheat sheet
+
   - Environment variables
   - Common workflows
   - Troubleshooting
@@ -58,11 +127,13 @@ New to TraceForge? Start here:
 ### Architecture
 
 - **[Architecture Visual](./architecture-visual.md)** - System diagrams
+
   - Component overview
   - Data flow
   - Multi-provider routing
 
 - **[VCR Implementation](./VCR_IMPLEMENTATION.md)** - VCR internals
+
   - Signature generation
   - Cassette storage
   - Match algorithms
@@ -147,36 +218,43 @@ npx pnpm --filter @traceforge/cli start vcr clean --yes
 ### I want to...
 
 **...debug LLM API calls**
+
 1. Start proxy: `npx pnpm dev`
 2. Configure app to use proxy: `export OPENAI_BASE_URL=http://localhost:8787/v1`
 3. Run your app
 4. View traces: http://localhost:5173
 
 **...create tests from production traffic**
+
 1. Capture traces (see above)
 2. Create test: Click "Save as Test" in web UI
 3. Run test: `npx pnpm --filter @traceforge/cli start test run`
 
 **...run tests without API calls**
+
 1. Record cassettes: `TRACEFORGE_VCR_MODE=record npx pnpm --filter @traceforge/cli start test run`
 2. Replay: `TRACEFORGE_VCR_MODE=replay npx pnpm --filter @traceforge/cli start test run`
 
 **...compare two responses**
+
 1. Open web UI: http://localhost:5173
 2. Select two traces
 3. Click "Compare" button
 
 **...validate JSON responses**
+
 - Use `json-schema` assertion (strict validation)
 - Or `json-subset` assertion (flexible validation)
 - See [Assertions](./assertions.md) for details
 
 **...check response performance**
+
 - Use `latency` assertion with threshold
 - Monitor `/metrics` endpoint for statistics
 - See [API Reference](./API.md) for metrics format
 
 **...test paraphrased responses**
+
 - Use `semantic` assertion with threshold
 - Adjust threshold for strictness (0.6-0.95)
 - See [Assertions](./assertions.md) for guidelines
@@ -186,22 +264,26 @@ npx pnpm --filter @traceforge/cli start vcr clean --yes
 ## 🔍 Search by Topic
 
 ### Testing
+
 - [Assertions](./assertions.md) - All assertion types
 - [Baseline Format](./baseline-format.md) - Test file structure
 - [CLI Reference](./cli.md) - Running tests
 - [VCR Usage](./VCR_USAGE.md) - Deterministic testing
 
 ### Configuration
+
 - [Environment Variables](./ENVIRONMENT_VARIABLES.md) - All config options
 - [API Reference](./API.md) - Configuration endpoints
 - [Getting Started](./getting-started.md) - Initial setup
 
 ### Architecture
+
 - [Architecture Visual](./architecture-visual.md) - System design
 - [VCR Implementation](./VCR_IMPLEMENTATION.md) - VCR internals
 - [VCR Mode Design](./design/VCR_MODE_DESIGN.md) - Design decisions
 
 ### File Formats
+
 - [Trace Format](./trace-format.md) - Trace JSON schema
 - [Baseline Format](./baseline-format.md) - Test YAML schema
 - [Migrations](./migrations.md) - Schema versioning
@@ -232,6 +314,7 @@ All TraceForge documentation follows these guidelines:
 ## 🗂️ Document Index
 
 ### User-Facing Guides (`guides/`)
+
 - `getting-started.md` - Quick start
 - `cli.md` - CLI reference
 - `assertions.md` - Assertion types
@@ -247,6 +330,7 @@ All TraceForge documentation follows these guidelines:
 - `design/VCR_MODE_DESIGN.md` - VCR design doc
 
 ### Internal Documentation (`docs/`)
+
 - `review.md` - Architectural review
 - `PRODUCTION_IMPROVEMENTS.md` - Production improvements summary
 - `implementation-summary.md` - Implementation history
