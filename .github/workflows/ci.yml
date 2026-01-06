@@ -221,6 +221,8 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
+      # Python 3.11 is required on macOS for node-gyp (used by better-sqlite3)
+      # Python 3.12+ removed the distutils module which node-gyp depends on
       - name: Setup Python (for node-gyp on macOS)
         if: runner.os == 'macOS'
         uses: actions/setup-python@v5
