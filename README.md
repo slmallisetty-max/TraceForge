@@ -84,9 +84,6 @@ npx pnpm dev
 **Alternative options:**
 
 ```bash
-# PowerShell script with checks
-.\dev.ps1
-
 # Docker (zero setup)
 docker-compose up
 ```
@@ -268,11 +265,8 @@ npx pnpm test --watch
 # Build all packages
 npx pnpm build
 
-# Integration testing (requires OPENAI_API_KEY)
-node test-semantic-integration.js
-
 # Performance benchmarks
-node benchmark-embeddings.js
+node packages/proxy/benchmarks/embeddings.js
 ```
 
 ## 🆕 Semantic Assertions (2026 Q1)

@@ -72,8 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated type definitions for new assertion types (11 total assertion types)
 - Comprehensive test suite for semantic assertions (47 CLI tests passing)
 - **Week 2 Polish & Integration Testing**:
-  - Integration test suite with real OpenAI API (`test-semantic-integration.js`)
-  - Performance benchmark tool (`benchmark-embeddings.js`)
+  - Performance benchmark tool (`packages/proxy/benchmarks/embeddings.js`)
   - Improved error messages with helpful context and suggestions
   - Enhanced validation for empty texts and API key issues
   - Better error handling for rate limits and network issues
