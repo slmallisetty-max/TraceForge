@@ -60,13 +60,13 @@ Verification Rules
 
 ### Components
 
-| Component | Port | Purpose |
-|-----------|------|---------|
-| **Proxy Server** | 8787 | Intercepts AI calls, records/replays executions |
-| **Web UI** | 5173 | Browse execution history, compare diffs |
-| **API Server** | 3001 | REST API for trace management |
-| **CLI** | - | Test runner, validation, VCR management |
-| **VS Code Extension** | - | Editor integration for tests and traces |
+| Component             | Port | Purpose                                         |
+| --------------------- | ---- | ----------------------------------------------- |
+| **Proxy Server**      | 8787 | Intercepts AI calls, records/replays executions |
+| **Web UI**            | 5173 | Browse execution history, compare diffs         |
+| **API Server**        | 3001 | REST API for trace management                   |
+| **CLI**               | -    | Test runner, validation, VCR management         |
+| **VS Code Extension** | -    | Editor integration for tests and traces         |
 
 ## Quick Start
 
@@ -86,8 +86,9 @@ npx pnpm dev
 ```
 
 **Services running:**
+
 - 🔵 Proxy: http://localhost:8787
-- 🟣 API: http://localhost:3001  
+- 🟣 API: http://localhost:3001
 - 🟢 UI: http://localhost:5173
 
 **Alternative: Docker**
@@ -127,13 +128,13 @@ git commit -m "Add execution snapshots for feature X"
 
 ### VCR Modes
 
-| Mode | Behavior | Use Case |
-|------|----------|----------|
-| `off` | Direct API calls, no recording | Live development |
-| `record` | Record all executions | Creating/updating snapshots |
-| `replay` | Replay from snapshots, error on miss | Local testing |
-| `auto` | Replay if exists, record if missing | Flexible development |
-| **`strict`** | **Replay only, hard fail on miss** | **CI/CD enforcement** |
+| Mode         | Behavior                             | Use Case                    |
+| ------------ | ------------------------------------ | --------------------------- |
+| `off`        | Direct API calls, no recording       | Live development            |
+| `record`     | Record all executions                | Creating/updating snapshots |
+| `replay`     | Replay from snapshots, error on miss | Local testing               |
+| `auto`       | Replay if exists, record if missing  | Flexible development        |
+| **`strict`** | **Replay only, hard fail on miss**   | **CI/CD enforcement**       |
 
 ## CI/CD Enforcement
 
@@ -142,7 +143,7 @@ git commit -m "Add execution snapshots for feature X"
 ```yaml
 # .github/workflows/ci.yml
 env:
-  TRACEFORGE_VCR_MODE: strict  # ← Hard fail on missing snapshots
+  TRACEFORGE_VCR_MODE: strict # ← Hard fail on missing snapshots
 
 steps:
   - name: Verify AI Executions
@@ -206,6 +207,7 @@ assertions:
 ```
 
 **Requirements:**
+
 - Set `OPENAI_API_KEY` environment variable
 - Embeddings are cached for deterministic CI runs
 
@@ -221,11 +223,13 @@ npx pnpm --filter @traceforge/cli start trace compare <trace-id-1> <trace-id-2> 
 ```
 
 **Risk Categories:**
+
 - **Cosmetic** (1-3): Minor formatting/style changes
 - **Semantic** (4-7): Meaning or tone changes requiring review
 - **Safety** (8-10): Security, compliance, or critical changes requiring approval
 
 **Analysis factors:**
+
 - Semantic similarity (embeddings)
 - Word overlap (Jaccard similarity)
 - Length changes
@@ -287,6 +291,7 @@ response = openai.ChatCompletion.create(
 ```
 
 **Supported Providers:**
+
 - **OpenAI**: GPT-4, GPT-4-turbo, GPT-3.5-turbo
 - **Anthropic**: Claude 3 Opus, Claude 3 Sonnet, Claude 2.1
 - **Google**: Gemini Pro, Gemini Pro Vision
@@ -354,30 +359,62 @@ traceforge/
 node packages/proxy/benchmarks/embeddings.js
 ```
 
-## Storage Considerations
+## Storage Backends
 
-### Current Limitations
+TraceForge supports **two storage backends**—choose based on your scale:
 
-**File-based storage is optimized for:**
-- ✅ Development and testing environments
-- ✅ Single-server deployments
-- ✅ Up to 10,000 traces (~500MB)
-- ✅ Teams of 1-10 developers
+### File Storage (Default)
 
-**Known limits:**
-- No automatic rotation (directory grows indefinitely)
-- No indexing (listing slows with >1000 files)
-- No concurrency control (race conditions with multiple proxies)
-- No built-in disk exhaustion monitoring
+**Best for:** Getting started, small teams (1-10 devs), <10k traces
 
-### Recommended Actions for Scale
+✅ Zero configuration  
+✅ Git-friendly JSON files  
+✅ Easy debugging
 
-1. **Monitor disk usage**: Alert when `.ai-tests/traces/` exceeds 1GB
-2. **Implement cleanup**: Remove old traces periodically
-   ```bash
-   find .ai-tests/traces/ -name "*.json" -mtime +7 -delete
-   ```
-3. **Configure retention**: Set `MAX_TRACES=10000` (coming soon)
+⚠️ Slows with >1000 traces (O(n) listing)  
+⚠️ No indexing or transactions
+
+### SQLite Storage (Recommended for Production)
+
+**Best for:** Production deployments, teams 5+, 100k+ traces
+
+✅ **100x faster** queries (indexed, O(log n))  
+✅ ACID transactions  
+✅ Advanced filtering: `SELECT * WHERE model='gpt-4' AND latency > 2000`  
+✅ Concurrent reads
+
+**Enable SQLite:**
+
+```bash
+# Set storage backend
+export TRACEFORGE_STORAGE_BACKEND=sqlite
+export TRACEFORGE_SQLITE_PATH=.ai-tests/traces.db
+
+# Restart proxy
+pnpm --filter @traceforge/proxy start
+```
+
+**Prerequisites:** Requires native build tools ([see setup guide](docs/STORAGE_BACKENDS.md))
+
+### Storage Comparison
+
+| Feature              | File Storage  | SQLite Storage         |
+| -------------------- | ------------- | ---------------------- |
+| **Setup**            | None          | Build tools required   |
+| **Max traces**       | ~10,000       | 1,000,000+             |
+| **List speed**       | O(n)          | O(log n) - 100x faster |
+| **Filtering**        | Client-side   | SQL queries            |
+| **Concurrency**      | Single writer | Multiple readers       |
+| **Git friendly**     | ✅ Yes        | ❌ Binary file         |
+| **Production ready** | Small scale   | ✅ Yes                 |
+
+**Upgrade path:** Start with file storage for development, migrate to SQLite when you exceed 5k traces or need query performance.
+
+### Cleanup & Retention
+
+```bash
+# Remove traces older than 7 days
+find .ai-tests/traces/ -name "*.json" -mtime +7 -delete
 4. **Watch metrics**: Monitor `/metrics` endpoint
 
 ### Safeguards
@@ -436,3 +473,4 @@ See [docs/architecture-review.md](docs/architecture-review.md) for detailed anal
 - ✅ Security hardening
 - ✅ OSS governance
 
+```

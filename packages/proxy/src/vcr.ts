@@ -78,6 +78,7 @@ export function buildRequestSignature(
     if (request.presence_penalty !== undefined)
       parts.push(request.presence_penalty);
     if (request.stop !== undefined) parts.push(JSON.stringify(request.stop));
+    if (request.seed !== undefined) parts.push(request.seed); // Enforce seed for determinism
   }
 
   const signature = parts.join("|");
