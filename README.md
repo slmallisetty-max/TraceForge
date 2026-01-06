@@ -436,7 +436,7 @@ See [docs/architecture-review.md](docs/architecture-review.md) for detailed anal
 ### Getting Started
 - [Quick Start Guide](guides/getting-started.md) - Installation and first steps
 - [VCR Quick Reference](guides/VCR_QUICK_REFERENCE.md) - VCR mode cheat sheet
-- [QUICK_REFERENCE.md](QUICK_REFERENCE.md) - One-page reference card
+- [All Guides](guides/README.md) - Complete documentation index
 
 ### User Guides
 - [CLI Reference](guides/cli.md) - Complete command-line documentation

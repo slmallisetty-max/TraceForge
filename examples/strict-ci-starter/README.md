@@ -13,7 +13,7 @@ This example shows how to enforce the TraceForge guarantee:
 ✅ **Local development** - Record AI executions  
 ✅ **Version control** - Commit execution snapshots  
 ✅ **CI enforcement** - Hard fail on missing/changed executions  
-✅ **Zero API costs** - Replay from snapshots in CI  
+✅ **Zero API costs** - Replay from snapshots in CI
 
 ---
 
@@ -67,10 +67,11 @@ GitHub Actions runs with `TRACEFORGE_VCR_MODE=strict`:
 
 ```yaml
 env:
-  TRACEFORGE_VCR_MODE: strict  # ← Hard fail enforcement
+  TRACEFORGE_VCR_MODE: strict # ← Hard fail enforcement
 ```
 
 **What happens:**
+
 - ✅ **With snapshots:** Tests replay, build passes
 - ❌ **Missing snapshots:** Build fails immediately
 - ❌ **Changed output:** Build fails with diff
@@ -188,6 +189,7 @@ git commit -m "Update snapshot: Changed summarization prompt for clarity"
 ```
 
 **Reviewers see:**
+
 - The snapshot diff in PR
 - What changed in AI behavior
 - Why the change was made
@@ -223,12 +225,14 @@ Just replay and verify.
 ## For Backend Engineers Shipping Production LLMs
 
 **This is for you if:**
+
 - ✅ You ship AI features to production
 - ✅ You already respect CI failures
 - ✅ You fear silent AI regressions
 - ✅ You think in invariants and contracts
 
 **This is NOT for you if:**
+
 - ❌ You're prototyping
 - ❌ You don't have CI/CD
 - ❌ You want a prompt playground
@@ -258,6 +262,7 @@ It makes one guarantee, and makes it unavoidable:
 **Cause:** Snapshot exists locally but not committed.
 
 **Fix:**
+
 ```bash
 git add .ai-tests/cassettes/
 git push
@@ -274,6 +279,7 @@ git push
 **Cause:** Cassette file modified or corrupted.
 
 **Fix:**
+
 ```bash
 rm .ai-tests/cassettes/openai/<signature>.json
 TRACEFORGE_VCR_MODE=record npm test
@@ -289,6 +295,7 @@ TRACEFORGE_VCR_MODE=record npm test
 4. ✅ Watch CI enforce it
 
 Then:
+
 - Wire into your real application
 - Add to team workflow
 - Make it mandatory in branch protection
@@ -315,7 +322,7 @@ Not:
 
 - [Full Documentation](../../README.md)
 - [CI Enforcement Guide](../../guides/CI_ENFORCEMENT.md)
-- [Quick Reference](../../docs/QUICK_REFERENCE.md)
+- [VCR Quick Reference](../../guides/VCR_QUICK_REFERENCE.md)
 
 ---
 
