@@ -351,7 +351,7 @@ export async function calculateRiskScore(
   } = options;
 
   // Extract policy violations if evaluation result provided
-  let allPolicyViolations = [...policyViolations];
+  const allPolicyViolations = [...policyViolations];
   if (policyEvaluationResult && policyEvaluationResult.violations) {
     const severityMapping = {
       critical: 'critical-policy',
