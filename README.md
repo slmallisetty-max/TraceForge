@@ -1,62 +1,72 @@
-# TraceForge.baseline
+# TraceForge
 
-> **TraceForge records, replays, and verifies AI executions deterministically.**
+> **Deterministic record, replay, and verification for AI systems**
 
 [![Status](https://img.shields.io/badge/status-V2%20Complete-brightgreen)]()
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)]()
 
-## What is TraceForge?
+## Overview
 
-**TraceForge is the execution record & replay layer for AI systems.**
-
-It guarantees that no AI behavior change reaches production without a recorded execution and verified replay.
+TraceForge is an execution recording and replay layer that makes AI behavior changes **explicit and unavoidable** in your development workflow. It guarantees that no AI behavior reaches production without recorded execution snapshots and verified replay.
 
 ### Core Guarantee
 
-- **Record** every AI execution with full context
-- **Replay** executions deterministically without live API calls
-- **Verify** behavior changes explicitly in CI/CD
-- **Enforce** reproducibility at build time
+> "No AI behavior change reaches production without a recorded execution and verified replay."
 
-### Why This Matters
+**How it works:**
 
-AI systems are non-deterministic by default. TraceForge makes them:
+1. **Record** - Capture every AI execution with full request/response context
+2. **Replay** - Run tests deterministically using recorded snapshots (no live API calls)
+3. **Verify** - Assert on AI outputs with 11 assertion types including semantic validation
+4. **Enforce** - CI/CD fails on missing or changed executions until explicitly approved
 
-- ✅ **Reproducible** - Replay any execution offline
-- ✅ **Verifiable** - Assert on AI outputs with 11 assertion types
-- ✅ **Auditable** - Full execution history with diffs
-- ✅ **Enforceable** - CI fails on missing/changed executions
+### Key Features
 
-### Key Capabilities
+- 🎬 **VCR Mode** - Record/replay execution snapshots with strict CI enforcement
+- ✅ **Smart Assertions** - 11 assertion types including semantic similarity and contradiction detection
+- 🔍 **Execution Inspector** - Web UI for browsing, comparing, and debugging executions
+- 🚫 **CI Enforcement** - Hard fail on unverified behavior changes (no bypass)
+- 🤖 **Multi-Provider** - OpenAI, Anthropic, Google Gemini, Ollama
+- 🔒 **Local-First** - Zero cloud dependencies, file-based storage
+- 📊 **Risk Scoring** - Automatic risk classification for AI response changes
 
-- 🎬 **Execution Snapshots (VCR)** - Record/replay with strict CI mode
-- 🔍 **Execution Inspector** - Web UI for browsing and comparing executions
-- ✅ **Verification Rules** - 11 assertion types including semantic validation
-- 🚫 **CI Enforcement** - Hard fail on unverified behavior changes
-- 🤖 **Multi-Provider** - OpenAI, Anthropic, Google, Ollama
-- 🔒 **Local-First** - Zero cloud dependencies, all data on disk
+### Why TraceForge?
+
+AI systems are inherently non-deterministic. TraceForge makes them:
+
+- ✅ **Reproducible** - Replay any execution offline without API calls
+- ✅ **Verifiable** - Assert on AI outputs using semantic and structural validation
+- ✅ **Auditable** - Full execution history with side-by-side diffs
+- ✅ **Cost-Effective** - No API costs in CI, fast test execution
 
 ## Architecture
 
-**TraceForge operates as an execution layer between your application and AI providers:**
+TraceForge operates as a transparent proxy layer between your application and AI providers:
 
 ```
-Your App → TraceForge Proxy → AI Provider (OpenAI/Anthropic/Google/Ollama)
-              ↓
-         Execution Record
-              ↓
-         Replay Engine (CI)
-              ↓
-         Verification Rules
+Your Application
+      ↓
+TraceForge Proxy (port 8787)
+      ↓
+AI Provider (OpenAI/Anthropic/Google/Ollama)
+      ↓
+Execution Record (.ai-tests/cassettes/)
+      ↓
+Replay Engine (CI/CD)
+      ↓
+Verification Rules
 ```
 
 ### Components
 
-- **Replay Engine** (port 8787) - Intercepts AI calls, records executions, enforces replay in CI
-- **Execution Inspector** (port 5173) - Web UI for browsing execution history and diffs
-- **Enforcement CLI** - Validates executions against verification rules, exits non-zero on violations
-- **VS Code Extension** - Manage execution snapshots and verification rules from your editor
+| Component | Port | Purpose |
+|-----------|------|---------|
+| **Proxy Server** | 8787 | Intercepts AI calls, records/replays executions |
+| **Web UI** | 5173 | Browse execution history, compare diffs |
+| **API Server** | 3001 | REST API for trace management |
+| **CLI** | - | Test runner, validation, VCR management |
+| **VS Code Extension** | - | Editor integration for tests and traces |
 
 ## Quick Start
 
@@ -65,68 +75,74 @@ Your App → TraceForge Proxy → AI Provider (OpenAI/Anthropic/Google/Ollama)
 - Node.js 18+
 - pnpm 8+
 
-### Installation & Start (ONE Command!)
+### Installation
 
 ```bash
 # Install dependencies
 npx pnpm install
 
-# Start EVERYTHING (proxy + API + UI)
+# Start all services (proxy + API + UI)
 npx pnpm dev
 ```
 
-**That's it!** ✅ All services running:
-
+**Services running:**
 - 🔵 Proxy: http://localhost:8787
-- 🟣 API: http://localhost:3001
+- 🟣 API: http://localhost:3001  
 - 🟢 UI: http://localhost:5173
 
-**Alternative options:**
+**Alternative: Docker**
 
 ```bash
-# Docker (zero setup)
 docker-compose up
 ```
 
-### Local Development Workflow
+### Basic Usage
 
-1. **Intercept AI executions:**
+**1. Configure your application to use the proxy:**
 
-   ```bash
-   export OPENAI_BASE_URL=http://localhost:8787/v1
-   export OPENAI_API_KEY=your-key
-   ```
+```bash
+export OPENAI_BASE_URL=http://localhost:8787/v1
+export OPENAI_API_KEY=your-actual-api-key
+```
 
-2. **Record execution snapshots:**
+**2. Record execution snapshots:**
 
-   ```bash
-   # Run your application with recording enabled
-   TRACEFORGE_VCR_MODE=record npm start
-   ```
+```bash
+TRACEFORGE_VCR_MODE=record npm start
+# Snapshots saved to .ai-tests/cassettes/
+```
 
-   All AI executions are saved to `.ai-tests/cassettes/`
+**3. Replay from snapshots (no API calls):**
 
-3. **Create verification rules:**
+```bash
+TRACEFORGE_VCR_MODE=replay npm test
+```
 
-   ```bash
-   # Create test from recorded execution
-   npx pnpm --filter @traceforge/cli start test create-from-trace <trace-id>
-   ```
+**4. Commit snapshots to version control:**
 
-4. **Commit snapshots to version control:**
-   ```bash
-   git add .ai-tests/
-   git commit -m "Add execution snapshots for feature X"
-   ```
+```bash
+git add .ai-tests/cassettes/
+git commit -m "Add execution snapshots for feature X"
+```
 
-### CI/CD Enforcement (The Critical Part)
+### VCR Modes
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| `off` | Direct API calls, no recording | Live development |
+| `record` | Record all executions | Creating/updating snapshots |
+| `replay` | Replay from snapshots, error on miss | Local testing |
+| `auto` | Replay if exists, record if missing | Flexible development |
+| **`strict`** | **Replay only, hard fail on miss** | **CI/CD enforcement** |
+
+## CI/CD Enforcement
 
 **This is what makes TraceForge unavoidable:**
 
 ```yaml
 # .github/workflows/ci.yml
 env:
-  TRACEFORGE_VCR_MODE: strict # ← Hard fail on missing snapshots
+  TRACEFORGE_VCR_MODE: strict  # ← Hard fail on missing snapshots
 
 steps:
   - name: Verify AI Executions
@@ -140,101 +156,157 @@ steps:
 - ✅ Changed AI output = **explicit diff** (requires approval)
 - ✅ No bypass, no warnings, no "best effort"
 
-This forces:
+**This enforces:**
 
-1. Snapshot commitment before merge
-2. Reproducible AI behavior
-3. Reviewer approval for behavior changes
+1. Every AI behavior change requires a recorded snapshot
+2. Reviewers see exact diffs of AI output changes
+3. No untested AI behavior reaches production
 
----
+## Complete Example
 
-## 🚀 Complete Example: Strict CI Starter
+Check out [`examples/strict-ci-starter/`](examples/strict-ci-starter/) for a production-ready example with:
 
-**Want to see CI enforcement in action?**
+- ✅ Real AI application (OpenAI summarization)
+- ✅ Test files with behavior validation
+- ✅ GitHub Actions workflow with strict mode
+- ✅ Complete failure scenario documentation
 
-Check out [`examples/strict-ci-starter/`](examples/strict-ci-starter/) - a complete, production-ready example showing how to enforce AI behavior reproducibility in CI.
-
-**What's included:**
-
-- ✅ Real AI application (OpenAI text summarization)
-- ✅ Test file with behavior validation
-- ✅ GitHub Actions workflow with strict mode enforcement
-- ✅ Complete documentation of failure scenarios
-- ✅ 5-minute Quick Start guide
-
-**Quick Start:**
+**Quick start:**
 
 ```bash
 cd examples/strict-ci-starter
 npm install
-npm run setup  # Validates your environment
-npm test       # Runs with committed snapshot
+npm run setup  # Validates environment
+npm test       # Runs with committed snapshots
 ```
 
 📖 **Full Guide**: [examples/strict-ci-starter/README.md](examples/strict-ci-starter/README.md)
 
-This example demonstrates the **"golden path"** for making AI behavior changes unavoidable in your CI pipeline.
+## Advanced Features
 
----
+### Semantic Assertions
 
-### Inspection & Debugging (Optional)
+Test AI behavior by **meaning**, not just exact text matching. Uses OpenAI embeddings to validate semantic similarity.
 
-The Web UI is for **inspection**, not the primary workflow:
+```yaml
+assertions:
+  # Validate semantic similarity
+  - type: semantic
+    expected: "Paris is the capital of France"
+    threshold: 0.85
+    description: "Response should convey Paris as France's capital"
 
-- Browse execution history: http://localhost:5173
-- Compare executions: Side-by-side diffs
-- Review failed verifications: See what changed
+  # Detect contradictions
+  - type: semantic-contradiction
+    forbidden:
+      - "Paris is not in France"
+      - "France has no capital"
+    threshold: 0.70
+    description: "Should not contradict basic facts"
+```
 
-### VCR Modes
+**Requirements:**
+- Set `OPENAI_API_KEY` environment variable
+- Embeddings are cached for deterministic CI runs
 
-| Mode         | Behavior                                     | Use Case              |
-| ------------ | -------------------------------------------- | --------------------- |
-| `off`        | No recording/replay                          | Local development     |
-| `record`     | Record all executions                        | Creating snapshots    |
-| `replay`     | Replay from snapshots, error on miss         | Local verification    |
-| `auto`       | Replay if exists, else record                | Flexible development  |
-| **`strict`** | **Replay only, forbid recording, hard fail** | **CI/CD enforcement** |
+📖 **Guide**: [guides/SEMANTIC_ASSERTIONS_QUICK_START.md](guides/SEMANTIC_ASSERTIONS_QUICK_START.md)
 
-**Strict mode usage:**
+### Risk Scoring
+
+Automatic risk classification for AI response changes with actionable recommendations:
 
 ```bash
-# CI environment
-export TRACEFORGE_VCR_MODE=strict
-npm test  # Fails if ANY snapshot is missing or changed
-   - ✅ Fast test execution (no network calls)
-   - ✅ Contributor-friendly (works offline)
-
-   # Run with specific options
-   npx pnpm --filter @traceforge/cli start test run --parallel --concurrency 10
-
-   # Watch mode for rapid development
-   npx pnpm --filter @traceforge/cli start test run --watch
-
-   # Generate JUnit XML for CI/CD
-   npx pnpm --filter @traceforge/cli start test run --junit results.xml
-
-   # Filter by tags
-   npx pnpm --filter @traceforge/cli start test run --tag smoke integration
+# Compare two traces with risk analysis
+npx pnpm --filter @traceforge/cli start trace compare <trace-id-1> <trace-id-2> --with-risk
 ```
 
-## Project Structure
+**Risk Categories:**
+- **Cosmetic** (1-3): Minor formatting/style changes
+- **Semantic** (4-7): Meaning or tone changes requiring review
+- **Safety** (8-10): Security, compliance, or critical changes requiring approval
 
+**Analysis factors:**
+- Semantic similarity (embeddings)
+- Word overlap (Jaccard similarity)
+- Length changes
+- Tone shifts
+- Format changes (JSON, code blocks, lists)
+- Performance deltas (latency, tokens)
+
+📖 **Guide**: [guides/RISK_SCORING_GUIDE.md](guides/RISK_SCORING_GUIDE.md)
+
+### CLI Test Runner
+
+Advanced test execution with flexible options:
+
+```bash
+# Run all tests
+npx pnpm --filter @traceforge/cli start test run
+
+# Parallel execution
+npx pnpm --filter @traceforge/cli start test run --parallel --concurrency 10
+
+# Watch mode for development
+npx pnpm --filter @traceforge/cli start test run --watch
+
+# Generate JUnit XML for CI
+npx pnpm --filter @traceforge/cli start test run --junit results.xml
+
+# Filter by tags
+npx pnpm --filter @traceforge/cli start test run --tag smoke integration
 ```
-traceforge/
-├── packages/
-│   ├── shared/          # Shared TypeScript types & Zod schemas
-│   ├── proxy/           # LLM proxy server (Fastify)
-│   ├── cli/             # Command-line tool (Commander.js)
-│   └── web/             # Web UI (Fastify API + React)
-├── examples/
-│   ├── strict-ci-starter/  # ⭐ Production CI enforcement example
-│   ├── demo-app/           # Demo application for testing
-│   └── python-demo/        # Python integration example
-├── docs/                # Documentation
-└── package.json         # Workspace root
+
+### Multi-Provider Support
+
+TraceForge supports multiple AI providers with automatic routing:
+
+```python
+# OpenAI
+response = openai.ChatCompletion.create(
+    model="gpt-4-turbo",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+
+# Claude (Anthropic)
+response = openai.ChatCompletion.create(
+    model="claude-3-opus-20240229",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+
+# Gemini (Google)
+response = openai.ChatCompletion.create(
+    model="gemini-pro",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+
+# Ollama (local, no API key needed)
+response = openai.ChatCompletion.create(
+    model="llama2",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
 ```
+
+**Supported Providers:**
+- **OpenAI**: GPT-4, GPT-4-turbo, GPT-3.5-turbo
+- **Anthropic**: Claude 3 Opus, Claude 3 Sonnet, Claude 2.1
+- **Google**: Gemini Pro, Gemini Pro Vision
+- **Ollama**: Llama 2, Mistral, CodeLlama, Phi (local)
+
+### VS Code Extension
+
+Integrated development experience:
+
+- 📂 TreeView panels for traces and tests
+- ▶️ Run tests directly from editor
+- 🔄 Auto-refresh on file changes
+- 💡 YAML snippets for test authoring (type `tf-test`)
+- 📝 Test templates for quick setup
+- 🚀 Proxy management from status bar
+- 📊 Open dashboard with one click
 
 ## Development
+
+### Setup
 
 ```bash
 # Install dependencies
@@ -251,166 +323,123 @@ npx pnpm typecheck
 
 # Lint
 npx pnpm lint
-```
 
-## Development Commands
-
-```bash
 # Run all tests
 npx pnpm test
+```
 
-# Watch mode
-npx pnpm test --watch
+### Project Structure
 
-# Build all packages
-npx pnpm build
+```
+traceforge/
+├── packages/
+│   ├── shared/              # Shared TypeScript types & Zod schemas
+│   ├── proxy/               # LLM proxy server (Fastify)
+│   ├── cli/                 # Command-line tool (Commander.js)
+│   ├── web/                 # Web UI (Fastify API + React)
+│   └── vscode-extension/    # VS Code extension
+├── examples/
+│   ├── strict-ci-starter/   # ⭐ Production CI enforcement example
+│   ├── demo-app/            # Demo application
+│   └── python-demo/         # Python integration example
+├── docs/                    # Technical documentation
+├── guides/                  # User guides
+└── package.json             # Workspace root
+```
 
-# Performance benchmarks
+### Performance Benchmarks
+
+```bash
+# Run embedding performance benchmarks
 node packages/proxy/benchmarks/embeddings.js
 ```
 
-## 🆕 Semantic Assertions (2026 Q1)
+## Storage Considerations
 
-Test AI behavior by **meaning**, not just exact text! Uses OpenAI embeddings to understand if responses convey the same idea.
+### Current Limitations
 
-```yaml
-assertions:
-  # Check if response conveys the same meaning
-  - type: semantic
-    expected: "Paris is the capital of France"
-    threshold: 0.85
-    description: "Should indicate Paris is France's capital"
-
-  # Detect contradictions
-  - type: semantic-contradiction
-    forbidden:
-      - "Paris is not in France"
-      - "France has no capital"
-    threshold: 0.70
-    description: "Should not contradict basic facts"
-```
-
-**Quick Start:**
-
-- Set `OPENAI_API_KEY` environment variable
-- Use `semantic` for meaning-based matching
-- Use `semantic-contradiction` to catch forbidden statements
-- Embeddings are cached for deterministic CI runs
-
-📖 **Full Guide**: [guides/SEMANTIC_ASSERTIONS_QUICK_START.md](guides/SEMANTIC_ASSERTIONS_QUICK_START.md)
-
-## VS Code Extension
-
-Install the TraceForge.baseline extension for an integrated development experience:
-
-- 📂 **TreeView panels** for traces and tests
-- ▶️ **Run tests** directly from editor
-- 🔄 **Auto-refresh** on file changes
-- 💡 **YAML snippets** for test authoring
-- 📝 **Test templates** for quick setup
-
-## ⚠️ Storage Limitations & Production Considerations
-
-**Current file-based storage is optimized for:**
-
+**File-based storage is optimized for:**
 - ✅ Development and testing environments
 - ✅ Single-server deployments
-- ✅ Up to 10,000 traces (approx 500MB)
+- ✅ Up to 10,000 traces (~500MB)
 - ✅ Teams of 1-10 developers
 
-**For production use at scale, consider:**
-
-### Storage Limits
-
-- **No automatic rotation**: Directory grows indefinitely without manual cleanup
-- **No indexing**: Listing traces becomes slow with >1000 files (O(n) complexity)
-- **No concurrency control**: Race conditions possible with multiple proxy instances
-- **Disk exhaustion risk**: No built-in monitoring or alerts
+**Known limits:**
+- No automatic rotation (directory grows indefinitely)
+- No indexing (listing slows with >1000 files)
+- No concurrency control (race conditions with multiple proxies)
+- No built-in disk exhaustion monitoring
 
 ### Recommended Actions for Scale
 
-1. **Monitor disk usage**: Set up alerts when `.ai-tests/traces/` exceeds 1GB
-2. **Implement cleanup**: Use `find` command or cron job to remove old traces:
+1. **Monitor disk usage**: Alert when `.ai-tests/traces/` exceeds 1GB
+2. **Implement cleanup**: Remove old traces periodically
    ```bash
-   # Delete traces older than 7 days
    find .ai-tests/traces/ -name "*.json" -mtime +7 -delete
    ```
-3. **Configure retention**: Set `MAX_TRACES=10000` environment variable (coming soon)
-4. **Watch metrics**: Monitor `/metrics` endpoint for storage failures
+3. **Configure retention**: Set `MAX_TRACES=10000` (coming soon)
+4. **Watch metrics**: Monitor `/metrics` endpoint
+
+### Safeguards
+
+- ✅ Circuit breaker (disables after 10 consecutive failures)
+- ✅ `/metrics` endpoint for storage health
+- ✅ `/health` endpoint monitors disk writability
 
 ### Future Storage Backends (Roadmap)
 
-- **SQLite** (planned): Better indexing, ACID guarantees, manageable file size
-- **PostgreSQL** (future): Multi-tenant, horizontal scaling, full-text search
-- **S3/Cloud Storage** (future): Unlimited retention, archival, cost-effective
+- **SQLite** (planned): Better indexing, ACID guarantees
+- **PostgreSQL** (future): Multi-tenant, horizontal scaling
+- **S3/Cloud** (future): Unlimited retention, archival
 
-### Current Safeguards
-
-- ✅ **Circuit breaker**: Disables trace saving after 10 consecutive failures
-- ✅ **Metrics endpoint**: `/metrics` exposes storage health statistics
-- ✅ **Enhanced health checks**: `/health` monitors disk writability
-
-See [docs/review.md](docs/review.md) for comprehensive architectural analysis.
-
-- ➕ **Create tests** from traces with one click
-- 🎨 **YAML snippets** for test authoring (type `tf-test`)
-- 🔄 **Auto-refresh** traces and tests every 5 seconds
-- 🚀 **Proxy management** - start/stop from status bar
-- 📊 **Open dashboard** with one click
-
-## Multi-Provider Support
-
-TraceForge.baseline supports multiple AI providers with automatic routing:
-
-- **OpenAI**: GPT-4, GPT-3.5-turbo, GPT-4-turbo (default)
-- **Anthropic**: Claude 3 Opus, Claude 3 Sonnet, Claude 2.1
-- **Google**: Gemini Pro, Gemini Pro Vision
-- **Ollama**: Llama 2, Mistral, CodeLlama, Phi (local, no API key needed)
-
-Just change the model name - TraceForge.baseline handles the rest:
-
-```python
-# Use Claude
-response = openai.ChatCompletion.create(
-    model="claude-3-opus-20240229",
-    messages=[{"role": "user", "content": "Hello!"}]
-)
-
-# Use Gemini
-response = openai.ChatCompletion.create(
-    model="gemini-pro",
-    messages=[{"role": "user", "content": "Hello!"}]
-)
-```
+See [docs/architecture-review.md](docs/architecture-review.md) for detailed analysis.
 
 ## Documentation
 
-### User Guides
-
-- [Getting Started](guides/getting-started.md) - Quick start guide
-- [CLI Reference](guides/cli.md) - Complete command-line documentation
-- [Assertions](guides/assertions.md) - Deep dive on all 8 assertion types
-- [API Reference](guides/API.md) - REST API endpoints
-- [VCR Usage](guides/VCR_USAGE.md) - Record/replay for deterministic testing
+### Getting Started
+- [Quick Start Guide](guides/getting-started.md) - Installation and first steps
 - [VCR Quick Reference](guides/VCR_QUICK_REFERENCE.md) - VCR mode cheat sheet
-- [Environment Variables](guides/ENVIRONMENT_VARIABLES.md) - Configuration options
+- [QUICK_REFERENCE.md](QUICK_REFERENCE.md) - One-page reference card
+
+### User Guides
+- [CLI Reference](guides/cli.md) - Complete command-line documentation
+- [Assertions Guide](guides/assertions.md) - All 11 assertion types explained
+- [VCR Usage Guide](guides/VCR_USAGE.md) - Record/replay in-depth
+- [Semantic Assertions](guides/SEMANTIC_ASSERTIONS_QUICK_START.md) - Meaning-based validation
+- [Risk Scoring](guides/RISK_SCORING_GUIDE.md) - Automated risk classification
+- [CI/CD Enforcement](guides/CI_GATING_GUIDE.md) - CI integration patterns
+- [Environment Variables](guides/ENVIRONMENT_VARIABLES.md) - Configuration reference
 
 ### Technical Reference
+- [Architecture Overview](guides/architecture-visual.md) - System diagrams and data flow
+- [VCR Implementation](guides/VCR_IMPLEMENTATION.md) - VCR internals
+- [VCR Mode Design](guides/design/VCR_MODE_DESIGN.md) - Design decisions
+- [Trace Format](guides/trace-format.md) - Trace file structure
+- [Baseline Format](guides/baseline-format.md) - Test file format
+- [API Reference](guides/API.md) - REST API endpoints
+- [Migrations](guides/migrations.md) - Schema versioning
 
-- [Architecture (Visual)](guides/architecture-visual.md) - System diagrams and data flow
-- [VCR Implementation](guides/VCR_IMPLEMENTATION.md) - VCR internals and architecture
-- [VCR Mode Design](guides/design/VCR_MODE_DESIGN.md) - Design decisions and patterns
-- [Trace Format](guides/trace-format.md) - Trace file structure and schema
-- [Baseline Format](guides/baseline-format.md) - Test and assertion format
-- [Migrations](guides/migrations.md) - Schema versioning and migration guide
+### Examples
+- [Strict CI Starter](examples/strict-ci-starter/) - ⭐ Production-ready CI enforcement
+- [Demo App](examples/demo-app/) - Basic usage example
+- [Python Demo](examples/python-demo/) - Python integration
 
-## Status
+## Project Status
 
-✅ **V2 Complete** - All 8 phases implemented!
+✅ **V2 Complete**
 
-- V1 MVP: Complete
-- V2 Phase 1-8: Complete
-- Multi-provider support ready
-- VS Code extension available
-- Security hardening complete
-- OSS governance in place
+- ✅ V1 MVP: Core functionality
+- ✅ V2 Phase 1-8: Advanced features
+- ✅ Multi-provider support (OpenAI, Anthropic, Google, Ollama)
+- ✅ VS Code extension
+- ✅ Semantic assertions & risk scoring
+- ✅ Security hardening
+- ✅ OSS governance
+
+## Contributing
+
+TraceForge is open source and welcomes contributions. See the [examples](examples/) directory for reference implementations and patterns.
+
+## License
+
+Apache 2.0 - See LICENSE for details.
