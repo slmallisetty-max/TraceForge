@@ -5,7 +5,7 @@
  * Tests cache hit rate and performance improvements
  */
 
-import { OpenAIEmbeddingService, CachedEmbeddingService, cosineSimilarity } from '../src/embeddings.js';
+import { OpenAIEmbeddingService, CachedEmbeddingService, cosineSimilarity } from '../dist/embeddings.js';
 import { rm } from 'fs/promises';
 import { performance } from 'perf_hooks';
 
