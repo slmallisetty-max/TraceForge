@@ -436,10 +436,3 @@ See [docs/architecture-review.md](docs/architecture-review.md) for detailed anal
 - ✅ Security hardening
 - ✅ OSS governance
 
-## Contributing
-
-TraceForge is open source and welcomes contributions. See the [examples](examples/) directory for reference implementations and patterns.
-
-## License
-
-Apache 2.0 - See LICENSE for details.
