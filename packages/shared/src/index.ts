@@ -11,3 +11,4 @@ export * from "./embeddings.js";
 export * from "./embedding-cache.js";
 export * from "./logger.js";
 export * from "./storage-manager.js";
+export * from "./session-client.js";

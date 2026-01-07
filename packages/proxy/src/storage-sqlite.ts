@@ -5,6 +5,7 @@ import type {
   Test,
   StorageBackend,
   ListOptions,
+  SessionMetadata,
 } from "@traceforge/shared";
 import { redactTrace } from "./redaction.js";
 
@@ -15,6 +16,7 @@ export class SQLiteStorageBackend implements StorageBackend {
     const path = dbPath || resolve(process.cwd(), ".ai-tests/traces.db");
     this.db = new Database(path);
     this.initSchema();
+    this.runMigrations();
   }
 
   private initSchema() {
@@ -28,13 +30,19 @@ export class SQLiteStorageBackend implements StorageBackend {
         response JSON,
         metadata JSON NOT NULL,
         schema_version TEXT,
-        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        session_id TEXT,
+        step_index INTEGER,
+        parent_trace_id TEXT,
+        state_snapshot JSON
       );
       
       CREATE INDEX IF NOT EXISTS idx_traces_timestamp ON traces(timestamp DESC);
       CREATE INDEX IF NOT EXISTS idx_traces_model ON traces(json_extract(metadata, '$.model'));
       CREATE INDEX IF NOT EXISTS idx_traces_status ON traces(json_extract(metadata, '$.status'));
       CREATE INDEX IF NOT EXISTS idx_traces_created ON traces(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_session_id ON traces(session_id);
+      CREATE INDEX IF NOT EXISTS idx_session_step ON traces(session_id, step_index);
     `);
 
     // Create tests table
@@ -58,13 +66,36 @@ export class SQLiteStorageBackend implements StorageBackend {
     `);
   }
 
+  private runMigrations() {
+    // Check if session columns exist
+    const tableInfo = this.db.pragma("table_info(traces)");
+    const columnNames = (tableInfo as any[]).map((col) => col.name);
+
+    if (!columnNames.includes("session_id")) {
+      console.log("Running migration: Adding session tracking columns");
+      this.db.exec(`
+        ALTER TABLE traces ADD COLUMN session_id TEXT;
+        ALTER TABLE traces ADD COLUMN step_index INTEGER;
+        ALTER TABLE traces ADD COLUMN parent_trace_id TEXT;
+        ALTER TABLE traces ADD COLUMN state_snapshot JSON;
+        
+        CREATE INDEX IF NOT EXISTS idx_session_id ON traces(session_id);
+        CREATE INDEX IF NOT EXISTS idx_session_step ON traces(session_id, step_index);
+      `);
+      console.log("Migration completed successfully");
+    }
+  }
+
   async saveTrace(trace: Trace): Promise<void> {
     // Redact before saving
     const redacted = redactTrace(trace);
 
     const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO traces (id, timestamp, endpoint, request, response, metadata, schema_version)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO traces (
+        id, timestamp, endpoint, request, response, metadata, schema_version,
+        session_id, step_index, parent_trace_id, state_snapshot
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -74,7 +105,11 @@ export class SQLiteStorageBackend implements StorageBackend {
       JSON.stringify(redacted.request),
       redacted.response ? JSON.stringify(redacted.response) : null,
       JSON.stringify(redacted.metadata),
-      redacted.schema_version || "1.0.0"
+      redacted.schema_version || "1.0.0",
+      redacted.session_id || null,
+      redacted.step_index !== undefined ? redacted.step_index : null,
+      redacted.parent_trace_id || null,
+      redacted.state_snapshot ? JSON.stringify(redacted.state_snapshot) : null
     );
   }
 
@@ -92,6 +127,12 @@ export class SQLiteStorageBackend implements StorageBackend {
       response: row.response ? JSON.parse(row.response) : null,
       metadata: JSON.parse(row.metadata),
       schema_version: row.schema_version,
+      session_id: row.session_id || undefined,
+      step_index: row.step_index !== null ? row.step_index : undefined,
+      parent_trace_id: row.parent_trace_id || undefined,
+      state_snapshot: row.state_snapshot
+        ? JSON.parse(row.state_snapshot)
+        : undefined,
     };
   }
 
@@ -144,6 +185,12 @@ export class SQLiteStorageBackend implements StorageBackend {
       response: row.response ? JSON.parse(row.response) : null,
       metadata: JSON.parse(row.metadata),
       schema_version: row.schema_version,
+      session_id: row.session_id || undefined,
+      step_index: row.step_index !== null ? row.step_index : undefined,
+      parent_trace_id: row.parent_trace_id || undefined,
+      state_snapshot: row.state_snapshot
+        ? JSON.parse(row.state_snapshot)
+        : undefined,
     }));
   }
 
@@ -265,6 +312,99 @@ export class SQLiteStorageBackend implements StorageBackend {
   async deleteTest(id: string): Promise<void> {
     const stmt = this.db.prepare("DELETE FROM tests WHERE id = ?");
     stmt.run(id);
+  }
+
+  async listTracesBySession(sessionId: string): Promise<Trace[]> {
+    const stmt = this.db.prepare(`
+      SELECT * FROM traces 
+      WHERE session_id = ? 
+      ORDER BY step_index ASC
+    `);
+
+    const rows: any[] = stmt.all(sessionId);
+
+    return rows.map((row) => ({
+      id: row.id,
+      timestamp: row.timestamp,
+      endpoint: row.endpoint,
+      request: JSON.parse(row.request),
+      response: row.response ? JSON.parse(row.response) : null,
+      metadata: JSON.parse(row.metadata),
+      schema_version: row.schema_version,
+      session_id: row.session_id || undefined,
+      step_index: row.step_index !== null ? row.step_index : undefined,
+      parent_trace_id: row.parent_trace_id || undefined,
+      state_snapshot: row.state_snapshot
+        ? JSON.parse(row.state_snapshot)
+        : undefined,
+    }));
+  }
+
+  async getSessionMetadata(
+    sessionId: string
+  ): Promise<SessionMetadata | null> {
+    const stmt = this.db.prepare(`
+      SELECT 
+        session_id,
+        COUNT(*) as total_steps,
+        MIN(timestamp) as start_time,
+        MAX(timestamp) as end_time,
+        json_extract(metadata, '$.model') as model,
+        json_extract(metadata, '$.tokens_used') as tokens,
+        json_extract(metadata, '$.status') as status
+      FROM traces 
+      WHERE session_id = ?
+      GROUP BY session_id
+    `);
+
+    const row: any = stmt.get(sessionId);
+
+    if (!row) return null;
+
+    // Get all traces to calculate aggregate data
+    const traces = await this.listTracesBySession(sessionId);
+
+    const startTime = new Date(row.start_time);
+    const endTime = new Date(row.end_time);
+    const durationMs = endTime.getTime() - startTime.getTime();
+
+    // Collect unique models
+    const modelsSet = new Set<string>();
+    let totalTokens = 0;
+    let hasError = false;
+    let allCompleted = true;
+
+    for (const trace of traces) {
+      if (trace.metadata.model) {
+        modelsSet.add(trace.metadata.model);
+      }
+      if (trace.metadata.tokens_used) {
+        totalTokens += trace.metadata.tokens_used;
+      }
+      if (trace.metadata.status === "error") {
+        hasError = true;
+      }
+      if (!trace.response) {
+        allCompleted = false;
+      }
+    }
+
+    const status = hasError
+      ? "failed"
+      : allCompleted
+      ? "completed"
+      : "in_progress";
+
+    return {
+      session_id: sessionId,
+      total_steps: row.total_steps,
+      start_time: row.start_time,
+      end_time: row.end_time,
+      duration_ms: durationMs,
+      models_used: Array.from(modelsSet),
+      total_tokens: totalTokens > 0 ? totalTokens : undefined,
+      status,
+    };
   }
 
   async close(): Promise<void> {

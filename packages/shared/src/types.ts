@@ -8,6 +8,11 @@ export interface Trace {
   request: LLMRequest;
   response: LLMResponse | null;
   metadata: TraceMetadata;
+  // Session tracking fields (v0.5.0+)
+  session_id?: string; // Groups related traces into a session
+  step_index?: number; // Sequential order within the session (0-based)
+  parent_trace_id?: string; // For hierarchical agent relationships
+  state_snapshot?: Record<string, any>; // Environment/tool state at this step
 }
 
 export interface TraceMetadata {
@@ -306,4 +311,16 @@ export interface StreamingTrace extends Trace {
   total_chunks: number;
   stream_duration_ms: number;
   first_chunk_latency_ms: number;
+}
+
+// Session Metadata (v0.5.0+)
+export interface SessionMetadata {
+  session_id: string;
+  total_steps: number;
+  start_time: string;
+  end_time?: string;
+  duration_ms?: number;
+  models_used: string[];
+  total_tokens?: number;
+  status: "in_progress" | "completed" | "failed";
 }
