@@ -1,6 +1,6 @@
 # TraceForge
 
-**System of record for AI behavior changes with enforcement, policy, and auditability**
+**System of record for AI behavior with enforcement, policy, and auditability**
 
 [![Status](https://img.shields.io/badge/status-v2.0-brightgreen)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)]()
@@ -185,7 +185,7 @@ In `strict` mode, TraceForge establishes itself as **the final authority** on AI
 TRACEFORGE_VCR_MODE=strict npm test
 ```
 
-**This is Git for AI behavior:** Just as Git requires explicit commits for code changes, strict mode requires explicit snapshot approval for AI output changes.
+**This is version control for AI behavior:** Just as Git requires explicit commits for code changes, strict mode requires explicit snapshot approval for AI output changes.
 
 **Guarantees:**
 
@@ -460,7 +460,7 @@ pnpm --filter @traceforge/proxy start
 
 ## Risk Scoring: The Decision Engine
 
-TraceForge doesn't just measure changes—it **decides whether AI changes are allowed to exist**. Risk scoring is the decision engine that determines if deployments proceed or halt.
+TraceForge doesn't just measure changes—it **decides whether AI changes are approved for deployment**. Risk scoring is the decision engine that determines if deployments proceed or halt.
 
 ```bash
 # Compare traces with risk analysis
@@ -635,7 +635,7 @@ A: In `strict` mode (CI), zero API calls are made. In development, use `replay` 
 A: Use semantic assertions instead of exact matching. TraceForge enforces by meaning, not exact text.
 
 **Q: Can I use this in production?**  
-A: TraceForge serves as the authoritative control plane for AI behavior in development and CI environments, with production integrations evolving to support runtime governance. For comprehensive production observability across distributed systems, TraceForge complements dedicated LLM monitoring tools.
+A: TraceForge is designed for development and CI environments to control AI behavior changes. For production monitoring, it works alongside dedicated LLM monitoring tools, with production features being developed.
 
 **Q: How do I migrate from file to SQLite storage?**  
 A: Export traces to JSON, enable SQLite backend, import traces. See [guides/migrations.md](guides/migrations.md).
