@@ -64,6 +64,47 @@ export class SQLiteStorageBackend implements StorageBackend {
       CREATE INDEX IF NOT EXISTS idx_tests_name ON tests(name);
       CREATE INDEX IF NOT EXISTS idx_tests_created ON tests(created_at DESC);
     `);
+
+    // Create FTS5 virtual table for full-text search
+    this.db.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS traces_fts USING fts5(
+        id UNINDEXED,
+        endpoint,
+        request_content,
+        response_content,
+        model
+      );
+      
+      -- Triggers to keep FTS index in sync
+      CREATE TRIGGER IF NOT EXISTS traces_fts_insert AFTER INSERT ON traces BEGIN
+        INSERT INTO traces_fts(rowid, id, endpoint, request_content, response_content, model)
+        VALUES (
+          NEW.rowid,
+          NEW.id,
+          NEW.endpoint,
+          json_extract(NEW.request, '$.messages'),
+          json_extract(NEW.response, '$.choices[0].message.content'),
+          json_extract(NEW.metadata, '$.model')
+        );
+      END;
+      
+      CREATE TRIGGER IF NOT EXISTS traces_fts_delete AFTER DELETE ON traces BEGIN
+        DELETE FROM traces_fts WHERE rowid = OLD.rowid;
+      END;
+      
+      CREATE TRIGGER IF NOT EXISTS traces_fts_update AFTER UPDATE ON traces BEGIN
+        DELETE FROM traces_fts WHERE rowid = OLD.rowid;
+        INSERT INTO traces_fts(rowid, id, endpoint, request_content, response_content, model)
+        VALUES (
+          NEW.rowid,
+          NEW.id,
+          NEW.endpoint,
+          json_extract(NEW.request, '$.messages'),
+          json_extract(NEW.response, '$.choices[0].message.content'),
+          json_extract(NEW.metadata, '$.model')
+        );
+      END;
+    `);
   }
 
   private runMigrations() {
@@ -81,6 +122,69 @@ export class SQLiteStorageBackend implements StorageBackend {
         
         CREATE INDEX IF NOT EXISTS idx_session_id ON traces(session_id);
         CREATE INDEX IF NOT EXISTS idx_session_step ON traces(session_id, step_index);
+      `);
+    }
+
+    // Check if FTS table exists
+    const tables = this.db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='traces_fts'"
+      )
+      .all();
+
+    if (tables.length === 0) {
+      // Create FTS5 table and triggers (same as initSchema)
+      this.db.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS traces_fts USING fts5(
+          id UNINDEXED,
+          endpoint,
+          request_content,
+          response_content,
+          model
+        );
+        
+        CREATE TRIGGER IF NOT EXISTS traces_fts_insert AFTER INSERT ON traces BEGIN
+          INSERT INTO traces_fts(rowid, id, endpoint, request_content, response_content, model)
+          VALUES (
+            NEW.rowid,
+            NEW.id,
+            NEW.endpoint,
+            json_extract(NEW.request, '$.messages'),
+            json_extract(NEW.response, '$.choices[0].message.content'),
+            json_extract(NEW.metadata, '$.model')
+          );
+        END;
+        
+        CREATE TRIGGER IF NOT EXISTS traces_fts_delete AFTER DELETE ON traces BEGIN
+          DELETE FROM traces_fts WHERE rowid = OLD.rowid;
+        END;
+        
+        CREATE TRIGGER IF NOT EXISTS traces_fts_update AFTER UPDATE ON traces BEGIN
+          DELETE FROM traces_fts WHERE rowid = OLD.rowid;
+          INSERT INTO traces_fts(rowid, id, endpoint, request_content, response_content, model)
+          VALUES (
+            NEW.rowid,
+            NEW.id,
+            NEW.endpoint,
+            json_extract(NEW.request, '$.messages'),
+            json_extract(NEW.response, '$.choices[0].message.content'),
+            json_extract(NEW.metadata, '$.model')
+          );
+        END;
+      `);
+
+      // Populate FTS index with existing traces
+      this.db.exec(`
+        INSERT INTO traces_fts(rowid, id, endpoint, request_content, response_content, model)
+        SELECT 
+          rowid,
+          id,
+          endpoint,
+          json_extract(request, '$.messages'),
+          json_extract(response, '$.choices[0].message.content'),
+          json_extract(metadata, '$.model')
+        FROM traces
+        WHERE response IS NOT NULL;
       `);
     }
   }
@@ -149,12 +253,12 @@ export class SQLiteStorageBackend implements StorageBackend {
 
     // Apply filters
     if (filter.model) {
-      query += ' AND json_extract(metadata, "$.model") = ?';
+      query += " AND json_extract(metadata, '$.model') = ?";
       params.push(filter.model);
     }
 
     if (filter.status) {
-      query += ' AND json_extract(metadata, "$.status") = ?';
+      query += " AND json_extract(metadata, '$.status') = ?";
       params.push(filter.status);
     }
 
@@ -404,6 +508,130 @@ export class SQLiteStorageBackend implements StorageBackend {
       total_tokens: totalTokens > 0 ? totalTokens : undefined,
       status,
     };
+  }
+
+  /**
+   * Search traces using full-text search
+   * @param query Search query (supports FTS5 syntax: AND, OR, NOT, phrase queries)
+   * @param options Search options
+   * @returns Matching traces ordered by relevance (BM25 ranking)
+   */
+  async searchTraces(
+    query: string,
+    options: {
+      limit?: number;
+      offset?: number;
+      filterModel?: string;
+      filterStatus?: "success" | "error";
+    } = {}
+  ): Promise<Trace[]> {
+    const { limit = 50, offset = 0, filterModel, filterStatus } = options;
+
+    // Prepare FTS5 query - if query doesn't contain FTS operators, treat as phrase
+    // This handles special characters like hyphens in model names (e.g., gpt-4)
+    let ftsQuery = query;
+    if (
+      !query.includes(" AND ") &&
+      !query.includes(" OR ") &&
+      !query.includes(" NOT ") &&
+      !query.startsWith('"')
+    ) {
+      // Check if query contains special characters that need quoting
+      if (/[^a-zA-Z0-9\s]/.test(query)) {
+        ftsQuery = `"${query}"`;
+      }
+    }
+
+    // Build search query
+    let sql = `
+      SELECT traces.*, 
+             bm25(traces_fts) as rank
+      FROM traces
+      INNER JOIN traces_fts ON traces.rowid = traces_fts.rowid
+      WHERE traces_fts MATCH ?
+    `;
+
+    const params: any[] = [ftsQuery];
+
+    // Apply additional filters
+    if (filterModel) {
+      sql += ` AND json_extract(metadata, '$.model') = ?`;
+      params.push(filterModel);
+    }
+
+    if (filterStatus) {
+      sql += ` AND json_extract(metadata, '$.status') = ?`;
+      params.push(filterStatus);
+    }
+
+    // Order by relevance (BM25 score)
+    sql += ` ORDER BY rank LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+
+    const stmt = this.db.prepare(sql);
+    const rows: any[] = stmt.all(...params);
+
+    return rows.map((row) => ({
+      id: row.id,
+      timestamp: row.timestamp,
+      endpoint: row.endpoint,
+      request: JSON.parse(row.request),
+      response: row.response ? JSON.parse(row.response) : null,
+      metadata: JSON.parse(row.metadata),
+      schema_version: row.schema_version,
+      session_id: row.session_id || undefined,
+      step_index: row.step_index !== null ? row.step_index : undefined,
+      parent_trace_id: row.parent_trace_id || undefined,
+      state_snapshot: row.state_snapshot
+        ? JSON.parse(row.state_snapshot)
+        : undefined,
+    }));
+  }
+
+  /**
+   * Count total search results without fetching all rows
+   */
+  async countSearchResults(query: string): Promise<number> {
+    // Prepare FTS5 query - if query doesn't contain FTS operators, treat as phrase
+    let ftsQuery = query;
+    if (
+      !query.includes(" AND ") &&
+      !query.includes(" OR ") &&
+      !query.includes(" NOT ") &&
+      !query.startsWith('"')
+    ) {
+      // Check if query contains special characters that need quoting
+      if (/[^a-zA-Z0-9\s]/.test(query)) {
+        ftsQuery = `"${query}"`;
+      }
+    }
+
+    const stmt = this.db.prepare(`
+      SELECT COUNT(*) as count
+      FROM traces_fts
+      WHERE traces_fts MATCH ?
+    `);
+
+    const row: any = stmt.get(ftsQuery);
+    return row.count;
+  }
+
+  /**
+   * Get search suggestions based on partial query
+   */
+  async getSearchSuggestions(
+    prefix: string,
+    limit: number = 10
+  ): Promise<string[]> {
+    const stmt = this.db.prepare(`
+      SELECT DISTINCT json_extract(metadata, '$.model') as model
+      FROM traces
+      WHERE json_extract(metadata, '$.model') LIKE ? || '%'
+      LIMIT ?
+    `);
+
+    const rows: any[] = stmt.all(prefix, limit);
+    return rows.map((r) => r.model).filter((m) => m !== null);
   }
 
   async close(): Promise<void> {

@@ -7,9 +7,6 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
-      // Temporarily skip SQLite tests - native bindings issue on Windows
-      // File storage (default) works fine and is what users will use
-      '**/storage-sqlite.test.ts',
     ],
     coverage: {
       provider: 'v8',

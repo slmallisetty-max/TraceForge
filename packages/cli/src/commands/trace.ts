@@ -213,3 +213,65 @@ traceCommand
     }
   });
 
+// trace search command
+traceCommand
+  .command('search <query>')
+  .description('Full-text search across all traces (requires SQLite storage)')
+  .option('-l, --limit <number>', 'Limit number of results', '20')
+  .option('-m, --model <model>', 'Filter by model')
+  .option('-s, --status <status>', 'Filter by status (success/error)')
+  .action(async (query: string, options: { limit: string; model?: string; status?: string }) => {
+    try {
+      // Dynamic require to avoid build-time dependency issues
+      // This works because the CLI runs after build completes
+      const { createStorageBackend } = require('@traceforge/proxy/dist/storage-factory.js');
+      const storage = createStorageBackend('sqlite');
+
+      if (!storage.searchTraces) {
+        console.log(chalk.red('Full-text search requires SQLite storage backend'));
+        console.log(chalk.yellow('Set TRACEFORGE_STORAGE_BACKEND=sqlite in your .env file'));
+        process.exit(1);
+      }
+
+      console.log(chalk.cyan(`Searching for: "${query}"\n`));
+
+      const results = await storage.searchTraces(query, {
+        limit: parseInt(options.limit),
+        filterModel: options.model,
+        filterStatus: options.status as 'success' | 'error' | undefined,
+      });
+
+      if (results.length === 0) {
+        console.log(chalk.yellow('No results found'));
+        return;
+      }
+
+      // Create table
+      const table = new Table({
+        head: ['ID', 'Timestamp', 'Model', 'Status', 'Endpoint'],
+        colWidths: [10, 22, 15, 10, 35],
+      });
+
+      for (const trace of results) {
+        table.push([
+          trace.id.substring(0, 8),
+          new Date(trace.timestamp).toLocaleString(),
+          trace.metadata.model || 'N/A',
+          trace.metadata.status === 'success' ? chalk.green('✓') : chalk.red('✗'),
+          trace.endpoint,
+        ]);
+      }
+
+      console.log(table.toString());
+      console.log(chalk.gray(`\nShowing ${results.length} results`));
+    } catch (error: any) {
+      if (error.code === 'MODULE_NOT_FOUND' || error.message.includes('Cannot find module')) {
+        console.log(chalk.red('SQLite storage backend not available'));
+        console.log(chalk.yellow('Make sure the proxy package is built: pnpm build'));
+      } else {
+        console.log(chalk.red(`Search failed: ${error.message}`));
+      }
+      process.exit(1);
+    }
+  });
+

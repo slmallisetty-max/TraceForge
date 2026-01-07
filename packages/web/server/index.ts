@@ -168,6 +168,77 @@ fastify.get<{ Params: { id: string } }>(
   }
 );
 
+// GET /api/traces/search - Full-text search
+fastify.get<{
+  Querystring: {
+    q: string;
+    limit?: string;
+    offset?: string;
+    model?: string;
+    status?: string;
+  };
+}>("/api/traces/search", async (request) => {
+  try {
+    const { q, limit = "50", offset = "0", model, status } = request.query;
+
+    if (!q || q.trim().length === 0) {
+      return { error: "Query parameter q is required" };
+    }
+
+    // Dynamic require to avoid build-time dependency issues
+    const { createStorageBackend } = require("../../proxy/dist/storage-factory.js");
+    const storage = createStorageBackend("sqlite");
+
+    if (!storage.searchTraces) {
+      return {
+        error:
+          "Full-text search not supported with current storage backend. Enable SQLite storage.",
+      };
+    }
+
+    const results = await storage.searchTraces(q, {
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      filterModel: model,
+      filterStatus: status as "success" | "error" | undefined,
+    });
+
+    const total = (await storage.countSearchResults?.(q)) || results.length;
+
+    return { results, total, query: q };
+  } catch (error: any) {
+    request.log.error(error);
+    return { error: error.message };
+  }
+});
+
+// GET /api/traces/search/suggestions - Search autocomplete
+fastify.get<{ Querystring: { prefix: string } }>(
+  "/api/traces/search/suggestions",
+  async (request) => {
+    try {
+      const { prefix } = request.query;
+
+      if (!prefix) {
+        return { suggestions: [] };
+      }
+
+      const { createStorageBackend } = require("../../proxy/dist/storage-factory.js");
+      const storage = createStorageBackend("sqlite");
+
+      if (!storage.getSearchSuggestions) {
+        return { suggestions: [] };
+      }
+
+      const suggestions = await storage.getSearchSuggestions(prefix);
+      return { suggestions };
+    } catch (error: any) {
+      request.log.error(error);
+      return { suggestions: [] };
+    }
+  }
+);
+
 // POST /api/tests - Create test from trace
 fastify.post<{ Body: { traceId: string; name: string; description?: string } }>(
   "/api/tests",
