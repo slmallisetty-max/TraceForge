@@ -3,7 +3,7 @@
  * Provides fallback support and hot-swapping capabilities
  */
 
-import type { Trace, Test } from "./types.js";
+import type { Trace, Test, SessionMetadata } from "./types.js";
 import type { StorageBackend, ListOptions } from "./storage-backend.js";
 import { storageLogger } from "./logger.js";
 
@@ -272,6 +272,76 @@ export class StorageManager implements StorageBackend {
 
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * List traces by session ID
+   */
+  async listTracesBySession(sessionId: string): Promise<Trace[]> {
+    try {
+      return await this.executeWithRetry(() =>
+        this.primary.listTracesBySession(sessionId)
+      );
+    } catch (error) {
+      this.metrics.primaryFailures++;
+      storageLogger.error(
+        { error, sessionId },
+        "Primary storage backend failed to list traces by session"
+      );
+
+      // Try fallbacks
+      for (const fallback of this.fallbacks) {
+        try {
+          const result = await fallback.listTracesBySession(sessionId);
+          this.metrics.fallbackSuccesses++;
+          return result;
+        } catch (fallbackError) {
+          this.metrics.fallbackFailures++;
+          storageLogger.warn(
+            { error: fallbackError, sessionId },
+            "Fallback failed for listTracesBySession"
+          );
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Get session metadata
+   */
+  async getSessionMetadata(
+    sessionId: string
+  ): Promise<SessionMetadata | null> {
+    try {
+      return await this.executeWithRetry(() =>
+        this.primary.getSessionMetadata(sessionId)
+      );
+    } catch (error) {
+      this.metrics.primaryFailures++;
+      storageLogger.error(
+        { error, sessionId },
+        "Primary storage backend failed to get session metadata"
+      );
+
+      // Try fallbacks
+      for (const fallback of this.fallbacks) {
+        try {
+          const result = await fallback.getSessionMetadata(sessionId);
+          this.metrics.fallbackSuccesses++;
+          return result;
+        } catch (fallbackError) {
+          this.metrics.fallbackFailures++;
+          storageLogger.warn(
+            { error: fallbackError, sessionId },
+            "Fallback failed for getSessionMetadata"
+          );
+        }
+      }
+
+      throw error;
+    }
   }
 
   /**

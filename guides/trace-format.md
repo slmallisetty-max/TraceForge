@@ -32,8 +32,25 @@ interface Trace {
   request: LLMRequest;           // Request payload
   response: LLMResponse | null;  // Response payload (null on error)
   metadata: TraceMetadata;       // Execution metadata
+  
+  // Session tracking fields (v0.5.0+)
+  session_id?: string;           // Groups related traces into a session
+  step_index?: number;           // Sequential order within session (0-based)
+  parent_trace_id?: string;      // For hierarchical agent relationships
+  state_snapshot?: Record<string, any>; // Environment/tool state at this step
 }
 ```
+
+### Session Tracking Fields (v0.5.0+)
+
+TraceForge supports multi-step session tracking for agentic workflows:
+
+- **session_id**: UUID identifying a complete workflow or agent interaction
+- **step_index**: Zero-based index indicating the order of this trace within the session
+- **parent_trace_id**: Reference to a parent trace for hierarchical workflows
+- **state_snapshot**: JSON object capturing environment state, tool outputs, or context
+
+See [Session Tracking Guide](./session-tracking.md) for usage details.
 
 ### Request Structure
 

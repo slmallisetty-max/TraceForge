@@ -247,4 +247,145 @@ describe("SQLiteStorageBackend", () => {
       expect(after).toHaveLength(0);
     });
   });
+
+  describe("Session operations", () => {
+    const createSessionTrace = (
+      id: string,
+      sessionId: string,
+      stepIndex: number,
+      parentTraceId?: string
+    ): Trace => ({
+      id,
+      timestamp: new Date(Date.now() + stepIndex * 1000).toISOString(),
+      endpoint: "/v1/chat/completions",
+      request: {
+        model: "gpt-4",
+        messages: [{ role: "user", content: `step ${stepIndex}` }],
+      },
+      response: {
+        id: `response-${id}`,
+        object: "chat.completion",
+        created: Math.floor(Date.now() / 1000),
+        model: "gpt-4",
+        choices: [
+          {
+            message: { role: "assistant", content: `response ${stepIndex}` },
+            index: 0,
+            finish_reason: "stop",
+          },
+        ],
+      },
+      metadata: {
+        model: "gpt-4",
+        status: "success",
+        duration_ms: 100 + stepIndex * 10,
+        tokens_used: 50 + stepIndex * 5,
+      },
+      schema_version: "1.0.0",
+      session_id: sessionId,
+      step_index: stepIndex,
+      parent_trace_id: parentTraceId,
+      state_snapshot: {
+        current_step: stepIndex,
+        data: `state-${stepIndex}`,
+      },
+    });
+
+    it("saves and retrieves traces by session", async () => {
+      const sessionId = "session-1";
+
+      // Create 3 traces in a session
+      await backend.saveTrace(createSessionTrace("trace-1", sessionId, 0));
+      await backend.saveTrace(createSessionTrace("trace-2", sessionId, 1));
+      await backend.saveTrace(createSessionTrace("trace-3", sessionId, 2));
+
+      // Create a trace in another session
+      await backend.saveTrace(createSessionTrace("trace-4", "session-2", 0));
+
+      const sessionTraces = await backend.listTracesBySession(sessionId);
+      expect(sessionTraces).toHaveLength(3);
+      expect(sessionTraces[0].step_index).toBe(0);
+      expect(sessionTraces[1].step_index).toBe(1);
+      expect(sessionTraces[2].step_index).toBe(2);
+    });
+
+    it("retrieves session metadata", async () => {
+      const sessionId = "session-test";
+
+      // Create traces with different models and tokens
+      const trace1 = createSessionTrace("trace-1", sessionId, 0);
+      trace1.metadata.model = "gpt-4";
+      trace1.metadata.tokens_used = 100;
+
+      const trace2 = createSessionTrace("trace-2", sessionId, 1);
+      trace2.metadata.model = "gpt-3.5-turbo";
+      trace2.metadata.tokens_used = 50;
+
+      await backend.saveTrace(trace1);
+      await backend.saveTrace(trace2);
+
+      const metadata = await backend.getSessionMetadata(sessionId);
+
+      expect(metadata).toBeDefined();
+      expect(metadata?.session_id).toBe(sessionId);
+      expect(metadata?.total_steps).toBe(2);
+      expect(metadata?.models_used).toContain("gpt-4");
+      expect(metadata?.models_used).toContain("gpt-3.5-turbo");
+      expect(metadata?.total_tokens).toBe(150);
+      expect(metadata?.status).toBe("completed");
+    });
+
+    it("returns null for non-existent session", async () => {
+      const metadata = await backend.getSessionMetadata("non-existent");
+      expect(metadata).toBeNull();
+    });
+
+    it("handles session with error status", async () => {
+      const sessionId = "session-error";
+
+      const trace1 = createSessionTrace("trace-1", sessionId, 0);
+      const trace2 = createSessionTrace("trace-2", sessionId, 1);
+      trace2.metadata.status = "error";
+      trace2.response = null;
+
+      await backend.saveTrace(trace1);
+      await backend.saveTrace(trace2);
+
+      const metadata = await backend.getSessionMetadata(sessionId);
+      expect(metadata?.status).toBe("failed");
+    });
+
+    it("saves traces with state snapshots", async () => {
+      const sessionId = "session-state";
+      const trace = createSessionTrace("trace-state", sessionId, 0);
+      trace.state_snapshot = {
+        user_query: "test query",
+        tool_calls: ["search", "summarize"],
+      };
+
+      await backend.saveTrace(trace);
+      const retrieved = await backend.getTrace("trace-state");
+
+      expect(retrieved?.state_snapshot).toBeDefined();
+      expect(retrieved?.state_snapshot?.user_query).toBe("test query");
+      expect(retrieved?.state_snapshot?.tool_calls).toHaveLength(2);
+    });
+
+    it("supports hierarchical traces with parent_trace_id", async () => {
+      const sessionId = "session-hierarchy";
+      const parentTrace = createSessionTrace("trace-parent", sessionId, 0);
+      const childTrace = createSessionTrace(
+        "trace-child",
+        sessionId,
+        1,
+        "trace-parent"
+      );
+
+      await backend.saveTrace(parentTrace);
+      await backend.saveTrace(childTrace);
+
+      const retrieved = await backend.getTrace("trace-child");
+      expect(retrieved?.parent_trace_id).toBe("trace-parent");
+    });
+  });
 });

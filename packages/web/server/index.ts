@@ -399,6 +399,211 @@ fastify.get("/api/analytics", async (request, reply) => {
   }
 });
 
+// GET /api/sessions - List all sessions with metadata
+fastify.get("/api/sessions", async (request, reply) => {
+  try {
+    const traceFiles = await readdir(TRACES_DIR);
+    const traces: Trace[] = [];
+
+    for (const file of traceFiles.filter((f) => f.endsWith(".json"))) {
+      const content = await readFile(join(TRACES_DIR, file), "utf-8");
+      traces.push(JSON.parse(content));
+    }
+
+    // Group traces by session_id
+    const sessionMap = new Map<string, Trace[]>();
+    for (const trace of traces) {
+      if (trace.session_id) {
+        const existing = sessionMap.get(trace.session_id) || [];
+        existing.push(trace);
+        sessionMap.set(trace.session_id, existing);
+      }
+    }
+
+    // Build session metadata
+    const sessions: import("@traceforge/shared").SessionMetadata[] = [];
+    for (const [sessionId, sessionTraces] of sessionMap.entries()) {
+      sessionTraces.sort((a, b) => (a.step_index || 0) - (b.step_index || 0));
+
+      const startTime = sessionTraces[0].timestamp;
+      const endTime = sessionTraces[sessionTraces.length - 1].timestamp;
+      const startMs = new Date(startTime).getTime();
+      const endMs = new Date(endTime).getTime();
+      const durationMs = endMs - startMs;
+
+      const modelsSet = new Set<string>();
+      let totalTokens = 0;
+      let hasError = false;
+      let allCompleted = true;
+
+      for (const trace of sessionTraces) {
+        if (trace.metadata.model) {
+          modelsSet.add(trace.metadata.model);
+        }
+        if (trace.metadata.tokens_used) {
+          totalTokens += trace.metadata.tokens_used;
+        }
+        if (trace.metadata.status === "error") {
+          hasError = true;
+        }
+        if (!trace.response) {
+          allCompleted = false;
+        }
+      }
+
+      const status = hasError
+        ? "failed"
+        : allCompleted
+        ? "completed"
+        : "in_progress";
+
+      sessions.push({
+        session_id: sessionId,
+        total_steps: sessionTraces.length,
+        start_time: startTime,
+        end_time: endTime,
+        duration_ms: durationMs,
+        models_used: Array.from(modelsSet),
+        total_tokens: totalTokens > 0 ? totalTokens : undefined,
+        status: status as "in_progress" | "completed" | "failed",
+      });
+    }
+
+    // Sort by start time descending
+    sessions.sort(
+      (a, b) =>
+        new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
+    );
+
+    return { sessions, total: sessions.length };
+  } catch (error: any) {
+    request.log.error(error);
+    return reply.code(500).send({ error: error.message });
+  }
+});
+
+// GET /api/sessions/:sessionId - Get session details with all traces
+fastify.get<{ Params: { sessionId: string } }>(
+  "/api/sessions/:sessionId",
+  async (request, reply) => {
+    try {
+      const { sessionId } = request.params;
+      const traceFiles = await readdir(TRACES_DIR);
+      const sessionTraces: Trace[] = [];
+
+      for (const file of traceFiles.filter((f) => f.endsWith(".json"))) {
+        const content = await readFile(join(TRACES_DIR, file), "utf-8");
+        const trace = JSON.parse(content);
+        if (trace.session_id === sessionId) {
+          sessionTraces.push(trace);
+        }
+      }
+
+      if (sessionTraces.length === 0) {
+        return reply.code(404).send({ error: "Session not found" });
+      }
+
+      // Sort by step_index
+      sessionTraces.sort((a, b) => (a.step_index || 0) - (b.step_index || 0));
+
+      // Calculate metadata
+      const startTime = sessionTraces[0].timestamp;
+      const endTime = sessionTraces[sessionTraces.length - 1].timestamp;
+      const startMs = new Date(startTime).getTime();
+      const endMs = new Date(endTime).getTime();
+      const durationMs = endMs - startMs;
+
+      const modelsSet = new Set<string>();
+      let totalTokens = 0;
+      let hasError = false;
+      let allCompleted = true;
+
+      for (const trace of sessionTraces) {
+        if (trace.metadata.model) {
+          modelsSet.add(trace.metadata.model);
+        }
+        if (trace.metadata.tokens_used) {
+          totalTokens += trace.metadata.tokens_used;
+        }
+        if (trace.metadata.status === "error") {
+          hasError = true;
+        }
+        if (!trace.response) {
+          allCompleted = false;
+        }
+      }
+
+      const status = hasError
+        ? "failed"
+        : allCompleted
+        ? "completed"
+        : "in_progress";
+
+      const metadata: import("@traceforge/shared").SessionMetadata = {
+        session_id: sessionId,
+        total_steps: sessionTraces.length,
+        start_time: startTime,
+        end_time: endTime,
+        duration_ms: durationMs,
+        models_used: Array.from(modelsSet),
+        total_tokens: totalTokens > 0 ? totalTokens : undefined,
+        status: status as "in_progress" | "completed" | "failed",
+      };
+
+      return { session: metadata, traces: sessionTraces };
+    } catch (error: any) {
+      request.log.error(error);
+      return reply.code(500).send({ error: error.message });
+    }
+  }
+);
+
+// GET /api/sessions/:sessionId/timeline - Get timeline data for visualization
+fastify.get<{ Params: { sessionId: string } }>(
+  "/api/sessions/:sessionId/timeline",
+  async (request, reply) => {
+    try {
+      const { sessionId } = request.params;
+      const traceFiles = await readdir(TRACES_DIR);
+      const sessionTraces: Trace[] = [];
+
+      for (const file of traceFiles.filter((f) => f.endsWith(".json"))) {
+        const content = await readFile(join(TRACES_DIR, file), "utf-8");
+        const trace = JSON.parse(content);
+        if (trace.session_id === sessionId) {
+          sessionTraces.push(trace);
+        }
+      }
+
+      if (sessionTraces.length === 0) {
+        return reply.code(404).send({ error: "Session not found" });
+      }
+
+      // Sort by step_index
+      sessionTraces.sort((a, b) => (a.step_index || 0) - (b.step_index || 0));
+
+      // Build timeline data
+      const timeline = sessionTraces.map((trace, index) => ({
+        step: trace.step_index || index,
+        trace_id: trace.id,
+        timestamp: trace.timestamp,
+        endpoint: trace.endpoint,
+        model: trace.metadata.model,
+        duration_ms: trace.metadata.duration_ms,
+        tokens_used: trace.metadata.tokens_used,
+        status: trace.metadata.status,
+        state_snapshot: trace.state_snapshot,
+        parent_trace_id: trace.parent_trace_id,
+      }));
+
+      return { timeline };
+    } catch (error: any) {
+      request.log.error(error);
+      return reply.code(500).send({ error: error.message });
+    }
+  }
+);
+
 // GET /api/config - Get current configuration
 fastify.get("/api/config", async (request, reply) => {
   try {

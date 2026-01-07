@@ -14,6 +14,7 @@ import type {
   Test,
   StorageBackend,
   ListOptions,
+  SessionMetadata,
 } from "@traceforge/shared";
 import { storageLogger } from "@traceforge/shared";
 import { redactTrace } from "./redaction.js";
@@ -350,6 +351,97 @@ export class FileStorageBackend implements StorageBackend {
 
   async close(): Promise<void> {
     // No cleanup needed for file-based storage
+  }
+
+  async listTracesBySession(sessionId: string): Promise<Trace[]> {
+    try {
+      if (!existsSync(TRACES_DIR)) {
+        return [];
+      }
+
+      const files = await readdir(TRACES_DIR);
+      const traceFiles = files.filter((f) => f.endsWith(".json"));
+
+      // Read all traces and filter by session_id
+      const traces: Trace[] = [];
+      for (const filename of traceFiles) {
+        const filepath = resolve(TRACES_DIR, filename);
+        const content = await readFile(filepath, "utf-8");
+        const trace = JSON.parse(content) as Trace;
+        if (trace.session_id === sessionId) {
+          traces.push(trace);
+        }
+      }
+
+      // Sort by step_index
+      traces.sort(
+        (a, b) => (a.step_index || 0) - (b.step_index || 0)
+      );
+
+      return traces;
+    } catch (error) {
+      storageLogger.error({ error, sessionId }, "Failed to list traces by session");
+      return [];
+    }
+  }
+
+  async getSessionMetadata(
+    sessionId: string
+  ): Promise<SessionMetadata | null> {
+    try {
+      const traces = await this.listTracesBySession(sessionId);
+
+      if (traces.length === 0) {
+        return null;
+      }
+
+      // Calculate metadata from traces
+      const startTime = traces[0].timestamp;
+      const endTime = traces[traces.length - 1].timestamp;
+      const startMs = new Date(startTime).getTime();
+      const endMs = new Date(endTime).getTime();
+      const durationMs = endMs - startMs;
+
+      const modelsSet = new Set<string>();
+      let totalTokens = 0;
+      let hasError = false;
+      let allCompleted = true;
+
+      for (const trace of traces) {
+        if (trace.metadata.model) {
+          modelsSet.add(trace.metadata.model);
+        }
+        if (trace.metadata.tokens_used) {
+          totalTokens += trace.metadata.tokens_used;
+        }
+        if (trace.metadata.status === "error") {
+          hasError = true;
+        }
+        if (!trace.response) {
+          allCompleted = false;
+        }
+      }
+
+      const status = hasError
+        ? "failed"
+        : allCompleted
+        ? "completed"
+        : "in_progress";
+
+      return {
+        session_id: sessionId,
+        total_steps: traces.length,
+        start_time: startTime,
+        end_time: endTime,
+        duration_ms: durationMs,
+        models_used: Array.from(modelsSet),
+        total_tokens: totalTokens > 0 ? totalTokens : undefined,
+        status,
+      };
+    } catch (error) {
+      storageLogger.error({ error, sessionId }, "Failed to get session metadata");
+      return null;
+    }
   }
 }
 

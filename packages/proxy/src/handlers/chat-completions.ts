@@ -13,6 +13,19 @@ export async function chatCompletionsHandler(
   const traceId = uuidv4();
   const timestamp = new Date().toISOString();
 
+  // Extract session headers
+  const sessionId = (request.headers['x-traceforge-session-id'] as string) || uuidv4();
+  const stepIndex = parseInt((request.headers['x-traceforge-step-index'] as string) || '0', 10);
+  const parentTraceId = request.headers['x-traceforge-parent-trace-id'] as string | undefined;
+  const stateHeader = request.headers['x-traceforge-state'] as string | undefined;
+  let stateSnapshot: Record<string, any> | undefined;
+  
+  try {
+    stateSnapshot = stateHeader ? JSON.parse(stateHeader) : undefined;
+  } catch (error) {
+    request.log.warn({ error }, 'Failed to parse X-TraceForge-State header');
+  }
+
   try {
     const config = await loadConfig();
     const llmRequest = request.body;
@@ -42,10 +55,19 @@ export async function chatCompletionsHandler(
               model: (cassette.response.body as LLMResponse).model,
               status: 'success',
             },
+            session_id: sessionId,
+            step_index: stepIndex,
+            parent_trace_id: parentTraceId,
+            state_snapshot: stateSnapshot,
           };
 
           await TraceStorage.saveTrace(trace);
         }
+
+        // Return session context headers
+        reply.header('X-TraceForge-Session-ID', sessionId);
+        reply.header('X-TraceForge-Trace-ID', traceId);
+        reply.header('X-TraceForge-Next-Step', (stepIndex + 1).toString());
 
         return reply.code(cassette.response.status).send(cassette.response.body);
       }
@@ -100,11 +122,20 @@ export async function chatCompletionsHandler(
           model: llmResponse.model,
           status: 'success',
         },
+        session_id: sessionId,
+        step_index: stepIndex,
+        parent_trace_id: parentTraceId,
+        state_snapshot: stateSnapshot,
       };
 
       await TraceStorage.saveTrace(trace);
       request.log.info(`Trace saved: ${traceId}`);
     }
+
+    // Return session context headers
+    reply.header('X-TraceForge-Session-ID', sessionId);
+    reply.header('X-TraceForge-Trace-ID', traceId);
+    reply.header('X-TraceForge-Next-Step', (stepIndex + 1).toString());
 
     // Return response to client
       return reply.code(response.status).send(llmResponse);
@@ -132,10 +163,19 @@ export async function chatCompletionsHandler(
           status: 'error',
           error: error.message,
         },
+        session_id: sessionId,
+        step_index: stepIndex,
+        parent_trace_id: parentTraceId,
+        state_snapshot: stateSnapshot,
       };
 
       await TraceStorage.saveTrace(trace);
     }
+
+    // Return session context headers even on error
+    reply.header('X-TraceForge-Session-ID', sessionId);
+    reply.header('X-TraceForge-Trace-ID', traceId);
+    reply.header('X-TraceForge-Next-Step', (stepIndex + 1).toString());
 
     request.log.error(error);
     return reply.code(500).send({

@@ -1,4 +1,4 @@
-import type { Trace, Test } from "./types.js";
+import type { Trace, Test, SessionMetadata } from "./types.js";
 
 export interface StorageBackend {
   // Traces
@@ -7,6 +7,10 @@ export interface StorageBackend {
   listTraces(options?: ListOptions): Promise<Trace[]>;
   deleteTrace(id: string): Promise<void>;
   countTraces(): Promise<number>;
+
+  // Session queries (v0.5.0+)
+  listTracesBySession(sessionId: string): Promise<Trace[]>;
+  getSessionMetadata(sessionId: string): Promise<SessionMetadata | null>;
 
   // Tests
   saveTest(test: Test): Promise<void>;
