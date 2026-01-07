@@ -38,6 +38,19 @@ export async function streamingChatCompletionsHandler(
   const traceId = uuidv4();
   const requestStartTime = Date.now();
   
+  // Extract session headers
+  const sessionId = (request.headers['x-traceforge-session-id'] as string) || uuidv4();
+  const stepIndex = parseInt((request.headers['x-traceforge-step-index'] as string) || '0', 10);
+  const parentTraceId = request.headers['x-traceforge-parent-trace-id'] as string | undefined;
+  const stateHeader = request.headers['x-traceforge-state'] as string | undefined;
+  let stateSnapshot: Record<string, any> | undefined;
+  
+  try {
+    stateSnapshot = stateHeader ? JSON.parse(stateHeader) : undefined;
+  } catch (error) {
+    request.log.warn({ error }, 'Failed to parse X-TraceForge-State header');
+  }
+  
   const chunks: StreamChunk[] = [];
   let firstChunkTime: number | null = null;
   let lastChunkTime = requestStartTime;
@@ -66,6 +79,9 @@ export async function streamingChatCompletionsHandler(
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
+      'X-TraceForge-Session-ID': sessionId,
+      'X-TraceForge-Trace-ID': traceId,
+      'X-TraceForge-Next-Step': (stepIndex + 1).toString(),
     });
 
     const reader = upstreamResponse.body?.getReader();
@@ -176,6 +192,10 @@ export async function streamingChatCompletionsHandler(
           status: 'success',
           model: finalModel,
         },
+        session_id: sessionId,
+        step_index: stepIndex,
+        parent_trace_id: parentTraceId,
+        state_snapshot: stateSnapshot,
         chunks,
         total_chunks: chunks.length,
         stream_duration_ms: streamDuration,

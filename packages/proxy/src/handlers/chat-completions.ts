@@ -23,7 +23,7 @@ export async function chatCompletionsHandler(
   try {
     stateSnapshot = stateHeader ? JSON.parse(stateHeader) : undefined;
   } catch (error) {
-    request.log.warn('Failed to parse X-TraceForge-State header:', error);
+    request.log.warn({ error }, 'Failed to parse X-TraceForge-State header');
   }
 
   try {

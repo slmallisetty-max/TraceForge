@@ -12,6 +12,19 @@ export async function ollamaHandler(
   const traceId = uuidv4();
   const body = request.body as LLMRequest;
 
+  // Extract session headers
+  const sessionId = (request.headers['x-traceforge-session-id'] as string) || uuidv4();
+  const stepIndex = parseInt((request.headers['x-traceforge-step-index'] as string) || '0', 10);
+  const parentTraceId = request.headers['x-traceforge-parent-trace-id'] as string | undefined;
+  const stateHeader = request.headers['x-traceforge-state'] as string | undefined;
+  let stateSnapshot: Record<string, any> | undefined;
+  
+  try {
+    stateSnapshot = stateHeader ? JSON.parse(stateHeader) : undefined;
+  } catch (error) {
+    request.log.warn({ error }, 'Failed to parse X-TraceForge-State header');
+  }
+
   try {
     // Ollama uses OpenAI-compatible API with 30s timeout
     const controller = new AbortController();
@@ -42,9 +55,18 @@ export async function ollamaHandler(
         model: body.model,
         status: 'success',
       },
+      session_id: sessionId,
+      step_index: stepIndex,
+      parent_trace_id: parentTraceId,
+      state_snapshot: stateSnapshot,
     };
 
     await TraceStorage.saveTrace(trace);
+
+    // Return session context headers
+    reply.header('X-TraceForge-Session-ID', sessionId);
+    reply.header('X-TraceForge-Trace-ID', traceId);
+    reply.header('X-TraceForge-Next-Step', (stepIndex + 1).toString());
 
     reply.code(response.status).send(ollamaResponse);
   } catch (error: any) {
@@ -62,9 +84,18 @@ export async function ollamaHandler(
         status: 'error',
         error: error.message,
       },
+      session_id: sessionId,
+      step_index: stepIndex,
+      parent_trace_id: parentTraceId,
+      state_snapshot: stateSnapshot,
     };
 
     await TraceStorage.saveTrace(trace);
+
+    // Return session context headers even on error
+    reply.header('X-TraceForge-Session-ID', sessionId);
+    reply.header('X-TraceForge-Trace-ID', traceId);
+    reply.header('X-TraceForge-Next-Step', (stepIndex + 1).toString());
 
     reply.code(500).send({
       error: {
