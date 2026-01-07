@@ -10,6 +10,7 @@ import type { Trace, Config, Test } from "@traceforge/shared";
 import { randomUUID } from "crypto";
 import { fileURLToPath } from "url";
 import { registerAuth, loadAuthConfig } from "./auth.js";
+import { createStorageBackend } from "../../proxy/src/storage-factory.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -164,6 +165,75 @@ fastify.get<{ Params: { id: string } }>(
     } catch (error: any) {
       request.log.error(error);
       return reply.code(500).send({ error: error.message });
+    }
+  }
+);
+
+// GET /api/traces/search - Full-text search
+fastify.get<{
+  Querystring: {
+    q: string;
+    limit?: string;
+    offset?: string;
+    model?: string;
+    status?: string;
+  };
+}>("/api/traces/search", async (request, reply) => {
+  try {
+    const { q, limit = "50", offset = "0", model, status } = request.query;
+
+    if (!q || q.trim().length === 0) {
+      return reply.code(400).send({ error: "Query parameter q is required" });
+    }
+
+    // Use SQLite backend for search
+    const storage = createStorageBackend("sqlite");
+
+    if (!storage.searchTraces) {
+      return reply.code(501).send({
+        error:
+          "Full-text search not supported with current storage backend. Enable SQLite storage.",
+      });
+    }
+
+    const results = await storage.searchTraces(q, {
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      filterModel: model,
+      filterStatus: status as "success" | "error" | undefined,
+    });
+
+    const total = (await storage.countSearchResults?.(q)) || results.length;
+
+    return { results, total, query: q };
+  } catch (error: any) {
+    request.log.error(error);
+    return reply.code(500).send({ error: error.message });
+  }
+});
+
+// GET /api/traces/search/suggestions - Search autocomplete
+fastify.get<{ Querystring: { prefix: string } }>(
+  "/api/traces/search/suggestions",
+  async (request, reply) => {
+    try {
+      const { prefix } = request.query;
+
+      if (!prefix) {
+        return { suggestions: [] };
+      }
+
+      const storage = createStorageBackend("sqlite");
+
+      if (!storage.getSearchSuggestions) {
+        return { suggestions: [] };
+      }
+
+      const suggestions = await storage.getSearchSuggestions(prefix);
+      return { suggestions };
+    } catch (error: any) {
+      request.log.error(error);
+      return { suggestions: [] };
     }
   }
 );

@@ -213,3 +213,58 @@ traceCommand
     }
   });
 
+// trace search command
+traceCommand
+  .command('search <query>')
+  .description('Full-text search across all traces')
+  .option('-l, --limit <number>', 'Limit number of results', '20')
+  .option('-m, --model <model>', 'Filter by model')
+  .option('-s, --status <status>', 'Filter by status (success/error)')
+  .action(async (query: string, options: { limit: string; model?: string; status?: string }) => {
+    try {
+      // Import SQLiteStorageBackend
+      const { SQLiteStorageBackend } = await import('../../../proxy/src/storage-sqlite.js');
+      const storage = new SQLiteStorageBackend();
+
+      if (!storage.searchTraces) {
+        console.log(chalk.red('Full-text search requires SQLite storage backend'));
+        process.exit(1);
+      }
+
+      console.log(chalk.cyan(`Searching for: "${query}"\n`));
+
+      const results = await storage.searchTraces(query, {
+        limit: parseInt(options.limit),
+        filterModel: options.model,
+        filterStatus: options.status as 'success' | 'error' | undefined,
+      });
+
+      if (results.length === 0) {
+        console.log(chalk.yellow('No results found'));
+        return;
+      }
+
+      // Create table
+      const table = new Table({
+        head: ['ID', 'Timestamp', 'Model', 'Status', 'Endpoint'],
+        colWidths: [10, 22, 15, 10, 35],
+      });
+
+      for (const trace of results) {
+        table.push([
+          trace.id.substring(0, 8),
+          new Date(trace.timestamp).toLocaleString(),
+          trace.metadata.model || 'N/A',
+          trace.metadata.status === 'success' ? chalk.green('✓') : chalk.red('✗'),
+          trace.endpoint,
+        ]);
+      }
+
+      console.log(table.toString());
+      console.log(chalk.gray(`\nShowing ${results.length} results`));
+    } catch (error: any) {
+      console.log(chalk.red(`Search failed: ${error.message}`));
+      process.exit(1);
+    }
+  });
+
