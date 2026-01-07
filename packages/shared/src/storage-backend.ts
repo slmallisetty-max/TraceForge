@@ -21,6 +21,21 @@ export interface StorageBackend {
   // Maintenance
   cleanup(maxAgeSeconds?: number, maxCount?: number): Promise<number>;
   close(): Promise<void>;
+
+  // Full-text search methods (SQLite only)
+  searchTraces?(
+    query: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+      filterModel?: string;
+      filterStatus?: "success" | "error";
+    }
+  ): Promise<Trace[]>;
+
+  countSearchResults?(query: string): Promise<number>;
+
+  getSearchSuggestions?(prefix: string, limit?: number): Promise<string[]>;
 }
 
 export interface ListOptions {
