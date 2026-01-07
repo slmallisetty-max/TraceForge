@@ -286,7 +286,7 @@ export class StorageManager implements StorageBackend {
       this.metrics.primaryFailures++;
       storageLogger.error(
         { error, sessionId },
-        "Failed to list traces by session with all backends"
+        "Primary storage backend failed to list traces by session"
       );
 
       // Try fallbacks
@@ -322,7 +322,7 @@ export class StorageManager implements StorageBackend {
       this.metrics.primaryFailures++;
       storageLogger.error(
         { error, sessionId },
-        "Failed to get session metadata with all backends"
+        "Primary storage backend failed to get session metadata"
       );
 
       // Try fallbacks

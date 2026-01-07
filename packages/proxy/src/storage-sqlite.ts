@@ -72,7 +72,7 @@ export class SQLiteStorageBackend implements StorageBackend {
     const columnNames = (tableInfo as any[]).map((col) => col.name);
 
     if (!columnNames.includes("session_id")) {
-      console.log("Running migration: Adding session tracking columns");
+      // Migration: Adding session tracking columns
       this.db.exec(`
         ALTER TABLE traces ADD COLUMN session_id TEXT;
         ALTER TABLE traces ADD COLUMN step_index INTEGER;
@@ -82,7 +82,6 @@ export class SQLiteStorageBackend implements StorageBackend {
         CREATE INDEX IF NOT EXISTS idx_session_id ON traces(session_id);
         CREATE INDEX IF NOT EXISTS idx_session_step ON traces(session_id, step_index);
       `);
-      console.log("Migration completed successfully");
     }
   }
 

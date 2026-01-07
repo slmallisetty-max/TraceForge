@@ -200,8 +200,9 @@ Session tracking is enabled by default. Configure via environment variables:
 ```bash
 # .env
 TRACEFORGE_SESSION_AUTO_ID=true              # Auto-generate session IDs (default: true)
-TRACEFORGE_SESSION_TIMEOUT_MS=3600000        # 1 hour timeout (default)
-TRACEFORGE_SESSION_MAX_STEPS=1000            # Max steps per session (default)
+# Note: The following are reserved for future implementation:
+# TRACEFORGE_SESSION_TIMEOUT_MS=3600000      # Session timeout (not yet enforced)
+# TRACEFORGE_SESSION_MAX_STEPS=1000          # Max steps per session (not yet enforced)
 ```
 
 ## Best Practices
