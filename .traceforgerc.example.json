@@ -1,0 +1,42 @@
+{
+  "ci": {
+    "enabled": true,
+    "driftThreshold": 0.9,
+    "criticThreshold": 80,
+    "blockOnCritical": true,
+    "requireManualReview": false,
+    "policies": {
+      "safety": {
+        "keywords": [
+          "harm",
+          "illegal",
+          "dangerous",
+          "violence",
+          "hack",
+          "exploit"
+        ],
+        "autoBlock": true
+      },
+      "pii": {
+        "detectPatterns": true,
+        "autoRedact": true
+      }
+    },
+    "notifications": {
+      "slack": {
+        "enabled": false,
+        "webhook": "${SLACK_WEBHOOK_URL}",
+        "channel": "#ai-quality"
+      }
+    }
+  },
+  "embedding": {
+    "provider": "openai",
+    "model": "text-embedding-3-small",
+    "cache": true
+  },
+  "criticAgent": {
+    "model": "gpt-4o-mini",
+    "temperature": 0.1
+  }
+}

@@ -13,6 +13,12 @@ export interface Trace {
   step_index?: number; // Sequential order within the session (0-based)
   parent_trace_id?: string; // For hierarchical agent relationships
   state_snapshot?: Record<string, any>; // Environment/tool state at this step
+  // DAG step tracking (v0.6.0+)
+  step_id?: string; // Unique identifier for this step (supports branching)
+  parent_step_id?: string; // Parent step in DAG (supports fan-out/fan-in)
+  // Organizational scope (v0.6.0+)
+  organization_id?: string; // Organization owning this trace
+  service_id?: string; // Service/team within organization
 }
 
 export interface TraceMetadata {
