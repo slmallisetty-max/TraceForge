@@ -21,11 +21,13 @@ traceforge ci check
 ## 📝 CLI Commands
 
 ### Basic Check
+
 ```bash
 traceforge ci check
 ```
 
 ### Custom Paths
+
 ```bash
 traceforge ci check \
   --baseline ./baselines/v1.0 \
@@ -33,11 +35,13 @@ traceforge ci check \
 ```
 
 ### Strict Mode
+
 ```bash
 traceforge ci check --threshold 0.95
 ```
 
 ### Output Formats
+
 ```bash
 traceforge ci check --output json      # JSON output
 traceforge ci check --output junit     # JUnit XML
@@ -58,31 +62,32 @@ traceforge ci check --output text      # Human-readable (default)
 
 ## 📊 Risk Levels
 
-| Level | Score | Action |
-|-------|-------|--------|
-| 🟢 Safe | 0-29 | Auto-approve |
-| 🟡 Warning | 30-59 | Review recommended |
-| 🟠 Danger | 60-79 | Manual review required |
-| 🔴 Critical | 80-100 | Blocked |
+| Level       | Score  | Action                 |
+| ----------- | ------ | ---------------------- |
+| 🟢 Safe     | 0-29   | Auto-approve           |
+| 🟡 Warning  | 30-59  | Review recommended     |
+| 🟠 Danger   | 60-79  | Manual review required |
+| 🔴 Critical | 80-100 | Blocked                |
 
 ## 🎯 Change Categories
 
-| Category | Description | Default Action |
-|----------|-------------|----------------|
-| Cosmetic | Formatting, whitespace | Approve |
-| Semantic | Paraphrases, style changes | Review |
-| Critical | Safety issues, hallucinations | Block |
+| Category | Description                   | Default Action |
+| -------- | ----------------------------- | -------------- |
+| Cosmetic | Formatting, whitespace        | Approve        |
+| Semantic | Paraphrases, style changes    | Review         |
+| Critical | Safety issues, hallucinations | Block          |
 
 ## 📈 Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | All checks passed |
-| 1 | Deployment blocked |
+| Code | Meaning            |
+| ---- | ------------------ |
+| 0    | All checks passed  |
+| 1    | Deployment blocked |
 
 ## 🔌 Integration Examples
 
 ### GitHub Actions
+
 ```yaml
 - name: Run risk analysis
   run: |
@@ -93,15 +98,17 @@ traceforge ci check --output text      # Human-readable (default)
 ```
 
 ### Jest
+
 ```typescript
 // jest.setup.ts
-import { SessionTracker } from '@traceforge/shared';
+import { SessionTracker } from "@traceforge/shared";
 global.sessionTracker = new SessionTracker();
 beforeAll(() => global.sessionTracker.start());
 afterAll(() => global.sessionTracker.end());
 ```
 
 ### Pytest
+
 ```python
 # conftest.py
 @pytest.fixture(scope="session", autouse=True)
@@ -115,16 +122,19 @@ def traceforge_session():
 ## 🐛 Troubleshooting
 
 ### No trace pairs found
+
 - Check baseline directory exists
 - Verify trace files have matching names
 - Ensure files are valid JSON
 
 ### High false positives
+
 - Lower drift threshold (0.85 instead of 0.90)
 - Adjust critic temperature
 - Review policy keywords
 
 ### API rate limits
+
 - Enable embedding cache
 - Use local embedding models
 - Batch process traces

@@ -3,7 +3,7 @@
  * Provides consistent, reversible masking of PII for audit compliance
  */
 
-import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
+import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
 
 export interface PseudonymizationConfig {
   /**
@@ -27,7 +27,7 @@ export interface PseudonymizationConfig {
 export interface PseudonymMapping {
   original: string;
   pseudonym: string;
-  type: 'email' | 'phone' | 'name' | 'ssn' | 'creditCard' | 'custom';
+  type: "email" | "phone" | "name" | "ssn" | "creditCard" | "custom";
   reversible: boolean;
   timestamp: string;
 }
@@ -41,7 +41,7 @@ export class Pseudonymizer {
   constructor(config: PseudonymizationConfig = {}) {
     this.config = {
       encryptionKey: config.encryptionKey || this.generateKey(),
-      salt: config.salt || randomBytes(16).toString('hex'),
+      salt: config.salt || randomBytes(16).toString("hex"),
       reversible: config.reversible ?? false,
     };
   }
@@ -56,21 +56,21 @@ export class Pseudonymizer {
       return {
         original: email,
         pseudonym: existing,
-        type: 'email',
+        type: "email",
         reversible: this.config.reversible,
         timestamp: new Date().toISOString(),
       };
     }
 
-    const [, domain] = email.split('@');
-    const pseudonym = `USER_${this.getNextId()}@${domain || 'example.com'}`;
+    const [, domain] = email.split("@");
+    const pseudonym = `USER_${this.getNextId()}@${domain || "example.com"}`;
 
     this.storeMapping(email, pseudonym);
 
     return {
       original: email,
       pseudonym,
-      type: 'email',
+      type: "email",
       reversible: this.config.reversible,
       timestamp: new Date().toISOString(),
     };
@@ -86,7 +86,7 @@ export class Pseudonymizer {
       return {
         original: phone,
         pseudonym: existing,
-        type: 'phone',
+        type: "phone",
         reversible: this.config.reversible,
         timestamp: new Date().toISOString(),
       };
@@ -94,16 +94,18 @@ export class Pseudonymizer {
 
     // Extract country code if present
     const countryCodeMatch = phone.match(/^\+\d{1,3}/);
-    const countryCode = countryCodeMatch ? countryCodeMatch[0] : '';
+    const countryCode = countryCodeMatch ? countryCodeMatch[0] : "";
 
-    const pseudonym = `${countryCode}-XXX-XXX-${this.getNextId().toString().padStart(4, '0')}`;
+    const pseudonym = `${countryCode}-XXX-XXX-${this.getNextId()
+      .toString()
+      .padStart(4, "0")}`;
 
     this.storeMapping(phone, pseudonym);
 
     return {
       original: phone,
       pseudonym,
-      type: 'phone',
+      type: "phone",
       reversible: this.config.reversible,
       timestamp: new Date().toISOString(),
     };
@@ -119,7 +121,7 @@ export class Pseudonymizer {
       return {
         original: name,
         pseudonym: existing,
-        type: 'name',
+        type: "name",
         reversible: this.config.reversible,
         timestamp: new Date().toISOString(),
       };
@@ -132,7 +134,7 @@ export class Pseudonymizer {
     return {
       original: name,
       pseudonym,
-      type: 'name',
+      type: "name",
       reversible: this.config.reversible,
       timestamp: new Date().toISOString(),
     };
@@ -148,7 +150,7 @@ export class Pseudonymizer {
       return {
         original: ssn,
         pseudonym: existing,
-        type: 'ssn',
+        type: "ssn",
         reversible: this.config.reversible,
         timestamp: new Date().toISOString(),
       };
@@ -161,7 +163,7 @@ export class Pseudonymizer {
     return {
       original: ssn,
       pseudonym,
-      type: 'ssn',
+      type: "ssn",
       reversible: this.config.reversible,
       timestamp: new Date().toISOString(),
     };
@@ -177,7 +179,7 @@ export class Pseudonymizer {
       return {
         original: cardNumber,
         pseudonym: existing,
-        type: 'creditCard',
+        type: "creditCard",
         reversible: this.config.reversible,
         timestamp: new Date().toISOString(),
       };
@@ -190,7 +192,7 @@ export class Pseudonymizer {
     return {
       original: cardNumber,
       pseudonym,
-      type: 'creditCard',
+      type: "creditCard",
       reversible: this.config.reversible,
       timestamp: new Date().toISOString(),
     };
@@ -201,7 +203,9 @@ export class Pseudonymizer {
    */
   reverse(pseudonym: string): string | null {
     if (!this.config.reversible) {
-      throw new Error('Pseudonymization is not reversible with current configuration');
+      throw new Error(
+        "Pseudonymization is not reversible with current configuration"
+      );
     }
 
     const encrypted = this.reverseMappings.get(pseudonym);
@@ -217,12 +221,12 @@ export class Pseudonymizer {
    */
   getAllMappings(): PseudonymMapping[] {
     const mappings: PseudonymMapping[] = [];
-    
+
     for (const [original, pseudonym] of this.mappings.entries()) {
       mappings.push({
         original,
         pseudonym,
-        type: 'custom',
+        type: "custom",
         reversible: this.config.reversible,
         timestamp: new Date().toISOString(),
       });
@@ -263,34 +267,34 @@ export class Pseudonymizer {
    * Generate a random encryption key
    */
   private generateKey(): string {
-    return randomBytes(32).toString('hex');
+    return randomBytes(32).toString("hex");
   }
 
   /**
    * Encrypt a value (for reversible pseudonymization)
    */
   private encrypt(value: string): string {
-    const key = Buffer.from(this.config.encryptionKey, 'hex');
+    const key = Buffer.from(this.config.encryptionKey, "hex");
     const iv = randomBytes(16);
-    const cipher = createCipheriv('aes-256-cbc', key, iv);
+    const cipher = createCipheriv("aes-256-cbc", key, iv);
 
-    let encrypted = cipher.update(value, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
+    let encrypted = cipher.update(value, "utf8", "hex");
+    encrypted += cipher.final("hex");
 
-    return iv.toString('hex') + ':' + encrypted;
+    return iv.toString("hex") + ":" + encrypted;
   }
 
   /**
    * Decrypt a value (for reversible pseudonymization)
    */
   private decrypt(encrypted: string): string {
-    const [ivHex, encryptedHex] = encrypted.split(':');
-    const key = Buffer.from(this.config.encryptionKey, 'hex');
-    const iv = Buffer.from(ivHex, 'hex');
-    const decipher = createDecipheriv('aes-256-cbc', key, iv);
+    const [ivHex, encryptedHex] = encrypted.split(":");
+    const key = Buffer.from(this.config.encryptionKey, "hex");
+    const iv = Buffer.from(ivHex, "hex");
+    const decipher = createDecipheriv("aes-256-cbc", key, iv);
 
-    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
+    let decrypted = decipher.update(encryptedHex, "hex", "utf8");
+    decrypted += decipher.final("utf8");
 
     return decrypted;
   }

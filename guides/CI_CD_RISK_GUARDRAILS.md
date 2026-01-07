@@ -62,7 +62,7 @@ Measures how similar the baseline and current responses are using embeddings:
 
 ```typescript
 const drift = await calculateSemanticDrift(baseline, current, {
-  threshold: 0.90 // 90% similarity required
+  threshold: 0.9, // 90% similarity required
 });
 
 console.log(`Similarity: ${drift.similarity}`);
@@ -115,23 +115,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      
+          node-version: "20"
+
       - run: pnpm install
       - run: pnpm build
-      
+
       - name: Download baseline
         uses: actions/download-artifact@v4
         with:
           name: baseline-traces
           path: .ai-tests/baseline
         continue-on-error: true
-      
+
       - name: Run tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: pnpm test
-      
+
       - name: Check risk
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -166,12 +166,12 @@ Create a `.traceforgerc.json` file:
 
 ### Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `driftThreshold` | number | 0.90 | Minimum similarity required (0-1) |
-| `criticThreshold` | number | 80 | Maximum risk score allowed (0-100) |
-| `blockOnCritical` | boolean | true | Block on critical changes |
-| `requireManualReview` | boolean | false | Require human review for warnings |
+| Option                | Type    | Default | Description                        |
+| --------------------- | ------- | ------- | ---------------------------------- |
+| `driftThreshold`      | number  | 0.90    | Minimum similarity required (0-1)  |
+| `criticThreshold`     | number  | 80      | Maximum risk score allowed (0-100) |
+| `blockOnCritical`     | boolean | true    | Block on critical changes          |
+| `requireManualReview` | boolean | false   | Require human review for warnings  |
 
 ## CLI Commands
 
@@ -180,6 +180,7 @@ Create a `.traceforgerc.json` file:
 Run risk analysis on test suite.
 
 **Options:**
+
 - `-b, --baseline <path>` - Baseline traces directory (default: `.ai-tests/baseline`)
 - `-c, --current <path>` - Current traces directory (default: `.ai-tests/traces`)
 - `-t, --threshold <number>` - Drift threshold (default: `0.90`)
@@ -214,7 +215,7 @@ traceforge ci check --output junit > test-results.xml
 Create `jest.setup.ts`:
 
 ```typescript
-import { SessionTracker } from '@traceforge/shared';
+import { SessionTracker } from "@traceforge/shared";
 
 global.sessionTracker = new SessionTracker();
 
@@ -323,6 +324,7 @@ def traceforge_session():
 Calculate semantic drift between two traces.
 
 **Parameters:**
+
 - `baseline: Trace` - Original trace
 - `current: Trace` - New trace
 - `options.threshold?: number` - Drift threshold (default: 0.90)
@@ -334,6 +336,7 @@ Calculate semantic drift between two traces.
 Classify changes using LLM critic.
 
 **Parameters:**
+
 - `baseline: string` - Original response text
 - `current: string` - New response text
 - `context?: { prompt?, model? }` - Optional context
@@ -345,6 +348,7 @@ Classify changes using LLM critic.
 Calculate comprehensive risk score.
 
 **Parameters:**
+
 - `drift: DriftResult` - Drift analysis result
 - `critic: CriticAnalysis` - Critic classification
 - `policy: RiskPolicy` - Enforcement policy

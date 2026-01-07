@@ -211,7 +211,11 @@ describe("SessionTracker", () => {
 
   describe("organizational scope", () => {
     it("should accept organization ID in constructor", () => {
-      const orgTracker = new SessionTracker(undefined, "org-acme", "service-support");
+      const orgTracker = new SessionTracker(
+        undefined,
+        "org-acme",
+        "service-support"
+      );
       const headers = orgTracker.getHeaders();
 
       expect(headers["X-TraceForge-Organization-ID"]).toBe("org-acme");
@@ -254,7 +258,10 @@ describe("SessionTracker", () => {
       // Step 2: Tool call
       tracker.nextStep();
       tracker.setState("tool_called", "search_flights");
-      tracker.setState("search_params", { destination: "Paris", date: "2024-06-01" });
+      tracker.setState("search_params", {
+        destination: "Paris",
+        date: "2024-06-01",
+      });
       const headers2 = tracker.getHeaders();
 
       expect(headers2["X-TraceForge-Step-Index"]).toBe("1");

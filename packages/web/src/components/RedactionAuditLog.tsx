@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 interface RedactionAudit {
   id: number;
@@ -51,7 +51,9 @@ export function RedactionAuditLog({ traceId }: RedactionAuditLogProps) {
   if (loading) {
     return (
       <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-white mb-4">Redaction Audit Log</h2>
+        <h2 className="text-xl font-bold text-white mb-4">
+          Redaction Audit Log
+        </h2>
         <p className="text-gray-400 text-sm">Loading...</p>
       </div>
     );
@@ -69,13 +71,15 @@ export function RedactionAuditLog({ traceId }: RedactionAuditLogProps) {
           onClick={() => setExpanded(!expanded)}
           className="text-sm text-blue-400 hover:text-blue-300"
         >
-          {expanded ? 'Hide' : 'Show'} ({audits.length} redactions)
+          {expanded ? "Hide" : "Show"} ({audits.length} redactions)
         </button>
       </div>
 
       {error && (
         <div className="bg-red-900/20 border border-red-500 rounded p-3 mb-4">
-          <p className="text-red-400 text-sm">Error loading audit log: {error}</p>
+          <p className="text-red-400 text-sm">
+            Error loading audit log: {error}
+          </p>
         </div>
       )}
 
@@ -127,8 +131,8 @@ export function RedactionAuditLog({ traceId }: RedactionAuditLogProps) {
 
       <div className="mt-4 text-xs text-gray-500">
         <p>
-          🔒 Redacted data is pseudonymized with reversible encryption. Contact your
-          administrator to decrypt sensitive fields.
+          🔒 Redacted data is pseudonymized with reversible encryption. Contact
+          your administrator to decrypt sensitive fields.
         </p>
       </div>
     </div>

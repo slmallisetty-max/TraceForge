@@ -30,19 +30,22 @@ Global Policies
 ```
 
 **Configuration:**
+
 ```typescript
 const tracker = new SessionTracker(
   undefined, // auto-generate session ID
-  'org-acme-corp', // organization ID
-  'service-customer-support' // service ID
+  "org-acme-corp", // organization ID
+  "service-customer-support" // service ID
 );
 ```
 
 **Headers:**
+
 - `X-TraceForge-Organization-ID`: Organization identifier
 - `X-TraceForge-Service-ID`: Service/team identifier
 
 **Use Cases:**
+
 - Multi-tenant SaaS platforms
 - Enterprise with multiple business units
 - Cross-functional teams with different compliance needs
@@ -66,11 +69,13 @@ tracker.join(parentStepId);
 ```
 
 **Key Features:**
+
 - **Cycle Detection:** Prevents infinite loops in agent graphs
 - **Ancestor Traversal:** Query all parent steps in the execution tree
 - **Child Enumeration:** Get all branches from a given step
 
 **Storage Methods:**
+
 ```typescript
 storage.getStepChildren(stepId); // Get all child steps
 storage.getStepAncestors(stepId); // Get all parent steps
@@ -82,6 +87,7 @@ storage.detectCycles(sessionId); // Check for cycles
 ### 3. **Policy-as-Code Enforcement**
 
 **Directory Structure:**
+
 ```
 .traceforge/policies/
   ├─ global/
@@ -96,6 +102,7 @@ storage.detectCycles(sessionId); // Check for cycles
 ```
 
 **Policy Definition:**
+
 ```json
 {
   "id": "enterprise-pii-policy",
@@ -117,14 +124,15 @@ storage.detectCycles(sessionId); // Check for cycles
 ```
 
 **Runtime Enforcement:**
+
 ```typescript
-const engine = new PolicyEngine('.traceforge/policies');
+const engine = new PolicyEngine(".traceforge/policies");
 engine.loadPolicies();
 
 const result = await engine.enforce(
   responseText,
-  'org-acme-corp',
-  'service-customer-support'
+  "org-acme-corp",
+  "service-customer-support"
 );
 
 if (!result.allowed) {
@@ -138,21 +146,23 @@ if (!result.allowed) {
 ### 4. **Pseudonymization & Reversibility**
 
 **Consistent PII Masking:**
+
 ```typescript
 const pseudonymizer = new Pseudonymizer({
   reversible: true,
-  encryptionKey: process.env.TRACEFORGE_ENCRYPTION_KEY
+  encryptionKey: process.env.TRACEFORGE_ENCRYPTION_KEY,
 });
 
-const mapping = pseudonymizer.pseudonymizeEmail('john.doe@example.com');
+const mapping = pseudonymizer.pseudonymizeEmail("john.doe@example.com");
 // Output: { original: 'john.doe@example.com', pseudonym: 'USER_001@example.com', reversible: true }
 
 // Reverse for authorized access
-const original = pseudonymizer.reverse('USER_001@example.com');
+const original = pseudonymizer.reverse("USER_001@example.com");
 // Output: 'john.doe@example.com'
 ```
 
 **Audit Trail:**
+
 ```typescript
 const auditLog = storage.getRedactionAudit(traceId);
 // Returns: [{ field_path: 'request.email', masked_value_hash: '...', timestamp: ... }]
@@ -163,14 +173,16 @@ const auditLog = storage.getRedactionAudit(traceId);
 ### 5. **Production-Grade SQLite Backend**
 
 **Optimizations Enabled:**
+
 - **WAL Mode:** Write-Ahead Logging for concurrent reads
 - **Foreign Keys:** Referential integrity for audit logs
 - **Auto-Vacuum:** Automatic space reclamation
 - **Full-Text Search:** FTS5 with BM25 ranking
 
 **Configuration:**
+
 ```typescript
-const storage = new SQLiteStorageBackend('./traces.db');
+const storage = new SQLiteStorageBackend("./traces.db");
 
 // Automatic retention cleanup
 storage.cleanupOldTraces(90); // Delete traces older than 90 days
@@ -192,11 +204,13 @@ console.log(`DB Size: ${(metrics.totalSize / 1024 / 1024).toFixed(2)} MB`);
 **Problem:** Test suite running, proxy crashes, baseline state corrupted.
 
 **Mitigation:**
+
 1. **WAL Mode:** Ensures atomicity even during crashes
 2. **Transaction Boundaries:** Each trace write is atomic
 3. **Recovery:** Restart proxy, SQLite auto-recovers from WAL
 
 **Best Practice:**
+
 ```bash
 # Run proxy in process manager with auto-restart
 pm2 start traceforge-proxy --name traceforge --max-restarts 10
@@ -207,11 +221,13 @@ pm2 start traceforge-proxy --name traceforge --max-restarts 10
 **Problem:** Hardware failure, disk corruption, or filesystem issues.
 
 **Mitigation:**
+
 1. **Backup Strategy:** Daily backups of `.ai-tests/traces.db`
 2. **Integrity Check:** Run `PRAGMA integrity_check` periodically
 3. **Fallback Storage:** TraceForge falls back to file-based storage if SQLite fails
 
 **Recovery Commands:**
+
 ```bash
 # Check database integrity
 sqlite3 traces.db "PRAGMA integrity_check;"
@@ -228,11 +244,13 @@ traceforge vcr rebuild-from-cassettes
 **Problem:** Overly strict policies blocking valid production requests.
 
 **Mitigation:**
+
 1. **Policy Priority:** Higher-priority policies override lower ones
 2. **Graceful Degradation:** Set `enforce_at_proxy: false` for test-time-only enforcement
 3. **Emergency Override:** Environment variable to disable enforcement
 
 **Emergency Disable:**
+
 ```bash
 export TRACEFORGE_DISABLE_POLICY_ENFORCEMENT=true
 ```
@@ -242,13 +260,15 @@ export TRACEFORGE_DISABLE_POLICY_ENFORCEMENT=true
 **Problem:** Storage backend failing repeatedly, circuit breaker prevents new writes.
 
 **Detection:**
+
 ```typescript
 if (storageCircuitBreaker.isOpen()) {
-  logger.warn('Storage circuit breaker open - traces not being saved');
+  logger.warn("Storage circuit breaker open - traces not being saved");
 }
 ```
 
 **Recovery:**
+
 1. Circuit breaker auto-resets after cooldown period (30 seconds)
 2. Check disk space, permissions, and SQLite health
 3. Manually reset: `storageCircuitBreaker.close()`
@@ -258,11 +278,13 @@ if (storageCircuitBreaker.isOpen()) {
 **Problem:** Multi-step sessions accumulating state, causing memory exhaustion.
 
 **Mitigation:**
+
 1. **Session Expiration:** Auto-expire sessions after 24 hours
 2. **State Pruning:** Limit `state_snapshot` size to 100KB
 3. **Monitoring:** Track session count and memory usage
 
 **Best Practice:**
+
 ```typescript
 // Clear session after completion
 tracker.start(); // Resets state and step counter
@@ -274,13 +296,13 @@ tracker.start(); // Resets state and step counter
 
 ### Performance SLAs
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| **Proxy Latency** | < 10ms | P95 overhead on LLM requests |
-| **Storage Write** | < 5ms | P99 trace write latency |
-| **Policy Evaluation** | < 50ms | P95 policy enforcement time |
-| **FTS Search** | < 100ms | P99 for 1M+ traces |
-| **Uptime** | 99.9% | Monthly availability |
+| Metric                | Target  | Measurement                  |
+| --------------------- | ------- | ---------------------------- |
+| **Proxy Latency**     | < 10ms  | P95 overhead on LLM requests |
+| **Storage Write**     | < 5ms   | P99 trace write latency      |
+| **Policy Evaluation** | < 50ms  | P95 policy enforcement time  |
+| **FTS Search**        | < 100ms | P99 for 1M+ traces           |
+| **Uptime**            | 99.9%   | Monthly availability         |
 
 ### Durability Guarantees
 
@@ -291,12 +313,12 @@ tracker.start(); // Resets state and step counter
 
 ### Scalability Limits
 
-| Component | Limit | Notes |
-|-----------|-------|-------|
-| **Traces per DB** | 100M+ | Tested with 10M traces (5GB) |
-| **Concurrent Requests** | 1000 RPS | Single proxy instance |
-| **Session Size** | 10,000 steps | Max steps per session |
-| **Policy Rules** | 1000 rules | Per policy contract |
+| Component               | Limit        | Notes                        |
+| ----------------------- | ------------ | ---------------------------- |
+| **Traces per DB**       | 100M+        | Tested with 10M traces (5GB) |
+| **Concurrent Requests** | 1000 RPS     | Single proxy instance        |
+| **Session Size**        | 10,000 steps | Max steps per session        |
+| **Policy Rules**        | 1000 rules   | Per policy contract          |
 
 ---
 
@@ -305,6 +327,7 @@ tracker.start(); // Resets state and step counter
 ### Positioning TraceForge as Mandatory Infrastructure
 
 **Compliance Frameworks:**
+
 - **GDPR:** Pseudonymization + audit logs satisfy Article 25 (privacy by design)
 - **SOC 2:** Immutable audit trail for Type II controls
 - **HIPAA:** Policy-based PHI blocking + reversibility for authorized access
@@ -318,6 +341,7 @@ tracker.start(); // Resets state and step counter
 4. **Cost Savings:** Avoid manual testing -> ROI justifies maintenance cost
 
 **Example Policy:**
+
 > "All production AI systems MUST route traffic through TraceForge proxy. Non-compliance triggers automated incident report to Security Team."
 
 ---
@@ -326,12 +350,12 @@ tracker.start(); // Resets state and step counter
 
 ### Recovery Time Objectives (RTO)
 
-| Scenario | RTO | Steps |
-|----------|-----|-------|
-| **Proxy Crash** | < 1 minute | Auto-restart via PM2/systemd |
-| **DB Corruption** | < 10 minutes | Restore from daily backup |
-| **Policy Misconfiguration** | < 5 minutes | Revert to previous policy version |
-| **Complete Data Loss** | < 4 hours | Rebuild from VCR cassettes + backups |
+| Scenario                    | RTO          | Steps                                |
+| --------------------------- | ------------ | ------------------------------------ |
+| **Proxy Crash**             | < 1 minute   | Auto-restart via PM2/systemd         |
+| **DB Corruption**           | < 10 minutes | Restore from daily backup            |
+| **Policy Misconfiguration** | < 5 minutes  | Revert to previous policy version    |
+| **Complete Data Loss**      | < 4 hours    | Rebuild from VCR cassettes + backups |
 
 ### Backup Strategy
 
@@ -371,6 +395,7 @@ traceforge_session_active_count
 ### Alert Conditions
 
 1. **Critical:**
+
    - Storage circuit breaker open for > 5 minutes
    - DB size growth > 10GB/day (anomaly detection)
    - Policy blocking rate > 10% (potential misconfiguration)
@@ -385,21 +410,25 @@ traceforge_session_active_count
 ## 🎯 Migration from "Dev Tool" to "Infrastructure"
 
 ### Phase 1: **Soft Adoption** (Week 1-2)
+
 - Run TraceForge in parallel with existing tests
 - No policy enforcement, observation-only mode
 - Team familiarization with UI and CLI
 
 ### Phase 2: **Policy Definition** (Week 3-4)
+
 - Define organizational policies collaboratively
 - Test policies in CI (fail on critical violations)
 - Document compliance mappings (GDPR, SOC 2, etc.)
 
 ### Phase 3: **Enforcement** (Week 5-6)
+
 - Enable `enforce_at_proxy: true` for critical policies
 - Route production traffic through proxy (with fallback)
 - Monitor for false positives, tune policies
 
 ### Phase 4: **Mandatory Deployment** (Week 7+)
+
 - Update deployment docs to require TraceForge
 - Add policy compliance to release checklists
 - Position TraceForge in compliance audits

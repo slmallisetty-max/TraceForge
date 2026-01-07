@@ -7,7 +7,14 @@
     "requireManualReview": false,
     "policies": {
       "safety": {
-        "keywords": ["harm", "illegal", "dangerous", "violence", "hack", "exploit"],
+        "keywords": [
+          "harm",
+          "illegal",
+          "dangerous",
+          "violence",
+          "hack",
+          "exploit"
+        ],
         "autoBlock": true
       },
       "pii": {

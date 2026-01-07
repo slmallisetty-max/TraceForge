@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import type { Trace, StreamingTrace } from '@traceforge/shared';
-import { fetchTrace, createTestFromTrace } from '../api/client';
-import { StreamingTraceDetail } from './StreamingTraceDetail';
-import { DAGVisualization } from './DAGVisualization';
-import { RedactionAuditLog } from './RedactionAuditLog';
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
+import type { Trace, StreamingTrace } from "@traceforge/shared";
+import { fetchTrace, createTestFromTrace } from "../api/client";
+import { StreamingTraceDetail } from "./StreamingTraceDetail";
+import { DAGVisualization } from "./DAGVisualization";
+import { RedactionAuditLog } from "./RedactionAuditLog";
 
 export default function TraceDetail() {
   const { id } = useParams<{ id: string }>();
@@ -12,7 +12,7 @@ export default function TraceDetail() {
   const [sessionTraces, setSessionTraces] = useState<Trace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [testName, setTestName] = useState('');
+  const [testName, setTestName] = useState("");
   const [creating, setCreating] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -27,20 +27,22 @@ export default function TraceDetail() {
       const data = await fetchTrace(traceId);
       setTrace(data);
       setTestName(`Test from ${traceId.substring(0, 8)}`);
-      
+
       // Load session traces for DAG visualization
       if (data.session_id) {
         try {
-          const sessionResponse = await fetch(`/api/sessions/${data.session_id}/traces`);
+          const sessionResponse = await fetch(
+            `/api/sessions/${data.session_id}/traces`
+          );
           if (sessionResponse.ok) {
             const sessionData = await sessionResponse.json();
             setSessionTraces(sessionData.traces || []);
           }
         } catch (err) {
-          console.warn('Failed to load session traces:', err);
+          console.warn("Failed to load session traces:", err);
         }
       }
-      
+
       setError(null);
     } catch (err: any) {
       setError(err.message);
@@ -75,8 +77,11 @@ export default function TraceDetail() {
   if (error || !trace) {
     return (
       <div className="bg-red-900/20 border border-red-500 rounded-lg p-4">
-        <p className="text-red-400">Error: {error || 'Trace not found'}</p>
-        <Link to="/" className="mt-2 inline-block text-blue-400 hover:text-blue-300">
+        <p className="text-red-400">Error: {error || "Trace not found"}</p>
+        <Link
+          to="/"
+          className="mt-2 inline-block text-blue-400 hover:text-blue-300"
+        >
           ← Back to traces
         </Link>
       </div>
@@ -100,7 +105,9 @@ export default function TraceDetail() {
           </div>
           <div>
             <p className="text-sm text-gray-400">Timestamp</p>
-            <p className="text-white">{new Date(trace.timestamp).toLocaleString()}</p>
+            <p className="text-white">
+              {new Date(trace.timestamp).toLocaleString()}
+            </p>
           </div>
           <div>
             <p className="text-sm text-gray-400">Endpoint</p>
@@ -108,7 +115,7 @@ export default function TraceDetail() {
           </div>
           <div>
             <p className="text-sm text-gray-400">Model</p>
-            <p className="text-white">{trace.metadata.model || 'N/A'}</p>
+            <p className="text-white">{trace.metadata.model || "N/A"}</p>
           </div>
           <div>
             <p className="text-sm text-gray-400">Duration</p>
@@ -118,9 +125,9 @@ export default function TraceDetail() {
             <p className="text-sm text-gray-400">Status</p>
             <span
               className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                trace.metadata.status === 'success'
-                  ? 'bg-green-900/30 text-green-400'
-                  : 'bg-red-900/30 text-red-400'
+                trace.metadata.status === "success"
+                  ? "bg-green-900/30 text-green-400"
+                  : "bg-red-900/30 text-red-400"
               }`}
             >
               {trace.metadata.status}
@@ -166,7 +173,7 @@ export default function TraceDetail() {
       </div>
 
       {/* Streaming Details */}
-      {'chunks' in trace && Array.isArray((trace as any).chunks) && (
+      {"chunks" in trace && Array.isArray((trace as any).chunks) && (
         <StreamingTraceDetail trace={trace as StreamingTrace} />
       )}
 
@@ -175,7 +182,9 @@ export default function TraceDetail() {
           <h2 className="text-xl font-bold text-white mb-4">Create Test</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Test Name</label>
+              <label className="block text-sm text-gray-400 mb-2">
+                Test Name
+              </label>
               <input
                 type="text"
                 value={testName}
@@ -189,17 +198,19 @@ export default function TraceDetail() {
               disabled={creating || !testName.trim()}
               className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white font-medium"
             >
-              {creating ? 'Creating...' : 'Save as Test'}
+              {creating ? "Creating..." : "Save as Test"}
             </button>
             {success && (
-              <p className="text-green-400 text-sm">✓ Test created successfully!</p>
+              <p className="text-green-400 text-sm">
+                ✓ Test created successfully!
+              </p>
             )}
           </div>
         </div>
       )}
 
       {/* Regular trace view (non-streaming) */}
-      {!('chunks' in trace && Array.isArray((trace as any).chunks)) && (
+      {!("chunks" in trace && Array.isArray((trace as any).chunks)) && (
         <div className="space-y-6">
           <div className="bg-gray-800 rounded-lg p-6">
             <h2 className="text-xl font-bold text-white mb-4">Request</h2>
@@ -217,7 +228,7 @@ export default function TraceDetail() {
             ) : (
               <div className="bg-red-900/20 border border-red-500 rounded p-4">
                 <p className="text-red-400">
-                  Error: {trace.metadata.error || 'No response available'}
+                  Error: {trace.metadata.error || "No response available"}
                 </p>
               </div>
             )}

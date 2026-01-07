@@ -16,9 +16,9 @@ export class SQLiteStorageBackend implements StorageBackend {
     const path = dbPath || resolve(process.cwd(), ".ai-tests/traces.db");
     this.db = new Database(path);
     // Enable WAL mode for production reliability
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('synchronous = NORMAL');
-    this.db.pragma('foreign_keys = ON');
+    this.db.pragma("journal_mode = WAL");
+    this.db.pragma("synchronous = NORMAL");
+    this.db.pragma("foreign_keys = ON");
     this.initSchema();
     this.runMigrations();
   }
@@ -495,9 +495,7 @@ export class SQLiteStorageBackend implements StorageBackend {
     }));
   }
 
-  async getSessionMetadata(
-    sessionId: string
-  ): Promise<SessionMetadata | null> {
+  async getSessionMetadata(sessionId: string): Promise<SessionMetadata | null> {
     const stmt = this.db.prepare(`
       SELECT 
         session_id,
@@ -694,7 +692,7 @@ export class SQLiteStorageBackend implements StorageBackend {
       SELECT * FROM traces WHERE parent_step_id = ? ORDER BY step_index ASC
     `);
     const rows: any[] = stmt.all(stepId);
-    return rows.map(row => this.rowToTrace(row));
+    return rows.map((row) => this.rowToTrace(row));
   }
 
   /**
@@ -703,16 +701,16 @@ export class SQLiteStorageBackend implements StorageBackend {
   getStepAncestors(stepId: string): Trace[] {
     const ancestors: Trace[] = [];
     const visited = new Set<string>();
-    
+
     const traverse = (currentStepId: string) => {
       if (visited.has(currentStepId)) return;
       visited.add(currentStepId);
-      
+
       const stmt = this.db.prepare(`
         SELECT * FROM traces WHERE step_id = ?
       `);
       const row: any = stmt.get(currentStepId);
-      
+
       if (row) {
         ancestors.push(this.rowToTrace(row));
         if (row.parent_step_id) {
@@ -720,7 +718,7 @@ export class SQLiteStorageBackend implements StorageBackend {
         }
       }
     };
-    
+
     traverse(stepId);
     return ancestors;
   }
@@ -734,22 +732,25 @@ export class SQLiteStorageBackend implements StorageBackend {
       WHERE session_id = ? AND step_id IS NOT NULL
     `);
     const rows: any[] = stmt.all(sessionId);
-    
+
     const graph = new Map<string, string>();
-    rows.forEach(row => {
+    rows.forEach((row) => {
       if (row.parent_step_id) {
         graph.set(row.step_id, row.parent_step_id);
       }
     });
-    
+
     const visited = new Set<string>();
     const recStack = new Set<string>();
-    
-    const hasCycleDFS = (node: string, path: string[]): { found: boolean; cycle?: string[] } => {
+
+    const hasCycleDFS = (
+      node: string,
+      path: string[]
+    ): { found: boolean; cycle?: string[] } => {
       visited.add(node);
       recStack.add(node);
       path.push(node);
-      
+
       const parent = graph.get(node);
       if (parent) {
         if (recStack.has(parent)) {
@@ -761,11 +762,11 @@ export class SQLiteStorageBackend implements StorageBackend {
           if (result.found) return result;
         }
       }
-      
+
       recStack.delete(node);
       return { found: false };
     };
-    
+
     for (const [stepId] of graph) {
       if (!visited.has(stepId)) {
         const result = hasCycleDFS(stepId, []);
@@ -774,7 +775,7 @@ export class SQLiteStorageBackend implements StorageBackend {
         }
       }
     }
-    
+
     return { hasCycle: false };
   }
 
@@ -789,7 +790,7 @@ export class SQLiteStorageBackend implements StorageBackend {
     userId?: string,
     reversible: boolean = false
   ): void {
-    const { randomUUID } = require('crypto');
+    const { randomUUID } = require("crypto");
     const stmt = this.db.prepare(`
       INSERT INTO redaction_audit (
         id, trace_id, field_path, masked_value_hash, redaction_type, user_id, reversible
@@ -820,7 +821,8 @@ export class SQLiteStorageBackend implements StorageBackend {
    * Clean up old traces based on retention policy
    */
   cleanupOldTraces(retentionDays: number): number {
-    const cutoffTimestamp = Math.floor(Date.now() / 1000) - (retentionDays * 24 * 60 * 60);
+    const cutoffTimestamp =
+      Math.floor(Date.now() / 1000) - retentionDays * 24 * 60 * 60;
     const stmt = this.db.prepare(`
       DELETE FROM traces WHERE created_at < ?
     `);
@@ -832,19 +834,19 @@ export class SQLiteStorageBackend implements StorageBackend {
    * Run VACUUM to reclaim space
    */
   vacuum(): void {
-    this.db.exec('VACUUM');
+    this.db.exec("VACUUM");
   }
 
   /**
    * Get database size metrics
    */
   getDbMetrics(): { pageCount: number; pageSize: number; totalSize: number } {
-    const pageCount = this.db.pragma('page_count', { simple: true }) as number;
-    const pageSize = this.db.pragma('page_size', { simple: true }) as number;
+    const pageCount = this.db.pragma("page_count", { simple: true }) as number;
+    const pageSize = this.db.pragma("page_size", { simple: true }) as number;
     return {
       pageCount,
       pageSize,
-      totalSize: pageCount * pageSize
+      totalSize: pageCount * pageSize,
     };
   }
 
@@ -863,7 +865,9 @@ export class SQLiteStorageBackend implements StorageBackend {
       session_id: row.session_id || undefined,
       step_index: row.step_index !== null ? row.step_index : undefined,
       parent_trace_id: row.parent_trace_id || undefined,
-      state_snapshot: row.state_snapshot ? JSON.parse(row.state_snapshot) : undefined,
+      state_snapshot: row.state_snapshot
+        ? JSON.parse(row.state_snapshot)
+        : undefined,
       step_id: row.step_id || undefined,
       parent_step_id: row.parent_step_id || undefined,
       organization_id: row.organization_id || undefined,

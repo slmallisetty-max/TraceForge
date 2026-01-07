@@ -3,12 +3,12 @@
  * Extends policy evaluation from test-time to production enforcement
  */
 
-import { existsSync, readFileSync, readdirSync } from 'fs';
-import { join } from 'path';
-import type { PolicyContract, PolicyEvaluationResult } from './policies.js';
-import { evaluatePolicy } from './policies.js';
+import { existsSync, readFileSync, readdirSync } from "fs";
+import { join } from "path";
+import type { PolicyContract, PolicyEvaluationResult } from "./policies.js";
+import { evaluatePolicy } from "./policies.js";
 
-export type PolicyScope = 'global' | 'organization' | 'service' | 'test';
+export type PolicyScope = "global" | "organization" | "service" | "test";
 
 export interface EnforceablePolicyContract extends PolicyContract {
   /**
@@ -41,7 +41,7 @@ export interface EnforceablePolicyContract extends PolicyContract {
 
 export interface PolicyEnforcementResult {
   allowed: boolean;
-  violations: PolicyEvaluationResult['violations'];
+  violations: PolicyEvaluationResult["violations"];
   blockedBy?: string; // Policy ID that blocked the request
   message?: string;
   enforcedPolicies: string[]; // List of policy IDs evaluated
@@ -51,7 +51,7 @@ export class PolicyEngine {
   private policies: Map<string, EnforceablePolicyContract> = new Map();
   private policiesDirectory: string;
 
-  constructor(policiesDirectory: string = '.traceforge/policies') {
+  constructor(policiesDirectory: string = ".traceforge/policies") {
     this.policiesDirectory = policiesDirectory;
   }
 
@@ -74,9 +74,9 @@ export class PolicyEngine {
 
         if (file.isDirectory()) {
           loadPoliciesFromDir(fullPath);
-        } else if (file.name.endsWith('.json')) {
+        } else if (file.name.endsWith(".json")) {
           try {
-            const content = readFileSync(fullPath, 'utf-8');
+            const content = readFileSync(fullPath, "utf-8");
             const policy: EnforceablePolicyContract = JSON.parse(content);
 
             if (policy.id && policy.name) {
@@ -132,11 +132,18 @@ export class PolicyEngine {
       if (enforcedOnly && !policy.enforce_at_proxy) continue;
 
       // Check scope hierarchy
-      if (policy.scope === 'global') {
+      if (policy.scope === "global") {
         applicable.push(policy);
-      } else if (policy.scope === 'organization' && organizationId === policy.organization_id) {
+      } else if (
+        policy.scope === "organization" &&
+        organizationId === policy.organization_id
+      ) {
         applicable.push(policy);
-      } else if (policy.scope === 'service' && serviceId === policy.service_id && organizationId === policy.organization_id) {
+      } else if (
+        policy.scope === "service" &&
+        serviceId === policy.service_id &&
+        organizationId === policy.organization_id
+      ) {
         applicable.push(policy);
       } else if (!policy.scope) {
         // Legacy policies without scope - treat as global
@@ -157,7 +164,11 @@ export class PolicyEngine {
     organizationId?: string,
     serviceId?: string
   ): Promise<PolicyEnforcementResult> {
-    const applicablePolicies = this.getApplicablePolicies(organizationId, serviceId, true);
+    const applicablePolicies = this.getApplicablePolicies(
+      organizationId,
+      serviceId,
+      true
+    );
 
     if (applicablePolicies.length === 0) {
       return {
@@ -167,7 +178,7 @@ export class PolicyEngine {
       };
     }
 
-    const allViolations: PolicyEvaluationResult['violations'] = [];
+    const allViolations: PolicyEvaluationResult["violations"] = [];
     const enforcedPolicyIds: string[] = [];
 
     // Evaluate each applicable policy
@@ -196,7 +207,10 @@ export class PolicyEngine {
       allowed: true,
       violations: allViolations,
       enforcedPolicies: enforcedPolicyIds,
-      message: allViolations.length > 0 ? `${allViolations.length} non-blocking violations detected` : undefined,
+      message:
+        allViolations.length > 0
+          ? `${allViolations.length} non-blocking violations detected`
+          : undefined,
     };
   }
 
