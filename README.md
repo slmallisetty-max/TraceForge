@@ -185,7 +185,7 @@ In `strict` mode, TraceForge establishes itself as **the final authority** on AI
 TRACEFORGE_VCR_MODE=strict npm test
 ```
 
-**This is version control for AI behavior:** Just as Git requires explicit commits for code changes, strict mode requires explicit snapshot approval for AI output changes.
+**This is change control for AI behavior:** Just as Git requires explicit commits for code changes, strict mode requires explicit snapshot approval for AI output changes.
 
 **Guarantees:**
 
@@ -460,7 +460,7 @@ pnpm --filter @traceforge/proxy start
 
 ## Risk Scoring: The Decision Engine
 
-TraceForge doesn't just measure changes—it **decides whether AI changes are approved for deployment**. Risk scoring is the decision engine that determines if deployments proceed or halt.
+TraceForge doesn't just measure changes—it **provides decision signals for deployment gates**. Risk scoring analyzes changes and feeds automated enforcement rules that determine if deployments proceed or halt.
 
 ```bash
 # Compare traces with risk analysis
@@ -611,7 +611,7 @@ Create `.traceforgerc.json` in your project root:
 
 - ✅ **Policies define what AI is allowed to say** — Not suggestions, but rules
 - ✅ **Violations are non-bypassable** — Enforced automatically in CI
-- ✅ **Applied consistently** — No human judgment required
+- ✅ **Applied consistently** — Automated enforcement without manual intervention
 - ✅ **Version controlled** — Policy changes go through code review
 
 Policies are a **first-class governance concept**, not configuration options. They establish boundaries that AI behavior cannot cross.
@@ -635,7 +635,7 @@ A: In `strict` mode (CI), zero API calls are made. In development, use `replay` 
 A: Use semantic assertions instead of exact matching. TraceForge enforces by meaning, not exact text.
 
 **Q: Can I use this in production?**  
-A: TraceForge is designed for development and CI environments to control AI behavior changes. For production monitoring, it works alongside dedicated LLM monitoring tools, with production features being developed.
+A: TraceForge is currently optimized for development and CI environments where it controls AI behavior changes. For production runtime monitoring, consider using dedicated LLM observability platforms alongside TraceForge's development-time governance.
 
 **Q: How do I migrate from file to SQLite storage?**  
 A: Export traces to JSON, enable SQLite backend, import traces. See [guides/migrations.md](guides/migrations.md).
