@@ -151,6 +151,95 @@ describe("SessionTracker", () => {
     });
   });
 
+  describe("DAG step tracking", () => {
+    it("should fork a new step branch", () => {
+      const stepId = tracker.fork();
+
+      expect(stepId).toBeDefined();
+      expect(tracker.getStepId()).toBe(stepId);
+      expect(tracker.getCurrentStep()).toBe(1);
+    });
+
+    it("should track parent step on fork", () => {
+      const firstStepId = tracker.fork();
+      const secondStepId = tracker.fork();
+
+      const headers = tracker.getHeaders();
+      expect(headers["X-TraceForge-Step-ID"]).toBe(secondStepId);
+      expect(headers["X-TraceForge-Parent-Step-ID"]).toBe(firstStepId);
+    });
+
+    it("should join back to parent step", () => {
+      const parentStepId = tracker.fork();
+      const branchStepId = tracker.fork();
+
+      tracker.join(parentStepId);
+
+      const headers = tracker.getHeaders();
+      expect(headers["X-TraceForge-Parent-Step-ID"]).toBe(parentStepId);
+      expect(headers["X-TraceForge-Step-ID"]).toBe(tracker.getStepId());
+      expect(headers["X-TraceForge-Step-ID"]).not.toBe(branchStepId);
+    });
+
+    it("should handle parallel branches", () => {
+      const rootStepId = tracker.fork();
+
+      // Branch A
+      const branchAId = tracker.fork();
+      const headers = tracker.getHeaders();
+      expect(headers["X-TraceForge-Parent-Step-ID"]).toBe(rootStepId);
+
+      // Branch B (also from root)
+      tracker.join(rootStepId);
+      const branchBId = tracker.fork();
+      expect(branchBId).not.toBe(branchAId);
+    });
+
+    it("should include step IDs in headers when present", () => {
+      tracker.fork();
+
+      const headers = tracker.getHeaders();
+      expect(headers["X-TraceForge-Step-ID"]).toBeDefined();
+    });
+
+    it("should not include step ID headers when not using DAG", () => {
+      const headers = tracker.getHeaders();
+      expect(headers["X-TraceForge-Step-ID"]).toBeUndefined();
+      expect(headers["X-TraceForge-Parent-Step-ID"]).toBeUndefined();
+    });
+  });
+
+  describe("organizational scope", () => {
+    it("should accept organization ID in constructor", () => {
+      const orgTracker = new SessionTracker(undefined, "org-acme", "service-support");
+      const headers = orgTracker.getHeaders();
+
+      expect(headers["X-TraceForge-Organization-ID"]).toBe("org-acme");
+      expect(headers["X-TraceForge-Service-ID"]).toBe("service-support");
+    });
+
+    it("should set organization ID dynamically", () => {
+      tracker.setOrganizationId("org-test");
+      const headers = tracker.getHeaders();
+
+      expect(headers["X-TraceForge-Organization-ID"]).toBe("org-test");
+    });
+
+    it("should set service ID dynamically", () => {
+      tracker.setServiceId("service-api");
+      const headers = tracker.getHeaders();
+
+      expect(headers["X-TraceForge-Service-ID"]).toBe("service-api");
+    });
+
+    it("should not include org headers when not set", () => {
+      const headers = tracker.getHeaders();
+
+      expect(headers["X-TraceForge-Organization-ID"]).toBeUndefined();
+      expect(headers["X-TraceForge-Service-ID"]).toBeUndefined();
+    });
+  });
+
   describe("integration scenario", () => {
     it("simulates a multi-step agent workflow", () => {
       // Step 1: User query

@@ -9,13 +9,21 @@ export class SessionTracker {
   private currentStep: number = 0;
   private state: Record<string, any> = {};
   private parentTraceId?: string;
+  private stepId?: string;
+  private parentStepId?: string;
+  private organizationId?: string;
+  private serviceId?: string;
 
   /**
    * Create a new session tracker
    * @param sessionId Optional session ID. If not provided, a new UUID will be generated.
+   * @param organizationId Optional organization ID for multi-tenant isolation
+   * @param serviceId Optional service ID for service-level tracking
    */
-  constructor(sessionId?: string) {
+  constructor(sessionId?: string, organizationId?: string, serviceId?: string) {
     this.sessionId = sessionId || randomUUID();
+    this.organizationId = organizationId;
+    this.serviceId = serviceId;
   }
 
   /**
@@ -26,6 +34,8 @@ export class SessionTracker {
     this.currentStep = 0;
     this.state = {};
     this.parentTraceId = undefined;
+    this.stepId = undefined;
+    this.parentStepId = undefined;
   }
 
   /**
@@ -53,6 +63,49 @@ export class SessionTracker {
   }
 
   /**
+   * Fork a new step branch from current step (DAG support)
+   * @returns New step ID for the forked branch
+   */
+  fork(): string {
+    const newStepId = randomUUID();
+    this.parentStepId = this.stepId || undefined;
+    this.stepId = newStepId;
+    this.currentStep++;
+    return newStepId;
+  }
+
+  /**
+   * Join back to parent after parallel execution
+   * @param parentStepId The step ID to join back to
+   */
+  join(parentStepId: string): void {
+    this.parentStepId = parentStepId;
+    this.stepId = randomUUID();
+    this.currentStep++;
+  }
+
+  /**
+   * Get current step ID
+   */
+  getStepId(): string | undefined {
+    return this.stepId;
+  }
+
+  /**
+   * Set organization ID for multi-tenant tracking
+   */
+  setOrganizationId(organizationId: string): void {
+    this.organizationId = organizationId;
+  }
+
+  /**
+   * Set service ID for service-level tracking
+   */
+  setServiceId(serviceId: string): void {
+    this.serviceId = serviceId;
+  }
+
+  /**
    * Get headers for the next API call
    * @returns Headers object with session tracking information
    */
@@ -64,6 +117,22 @@ export class SessionTracker {
 
     if (this.parentTraceId) {
       headers["X-TraceForge-Parent-Trace-ID"] = this.parentTraceId;
+    }
+
+    if (this.stepId) {
+      headers["X-TraceForge-Step-ID"] = this.stepId;
+    }
+
+    if (this.parentStepId) {
+      headers["X-TraceForge-Parent-Step-ID"] = this.parentStepId;
+    }
+
+    if (this.organizationId) {
+      headers["X-TraceForge-Organization-ID"] = this.organizationId;
+    }
+
+    if (this.serviceId) {
+      headers["X-TraceForge-Service-ID"] = this.serviceId;
     }
 
     // Only include state if it's not empty

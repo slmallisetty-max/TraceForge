@@ -1,0 +1,85 @@
+name: AI Quality Check
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+jobs:
+  risk-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build TraceForge
+        run: pnpm build
+
+      - name: Download baseline traces
+        uses: actions/download-artifact@v4
+        with:
+          name: baseline-traces
+          path: .ai-tests/baseline
+        continue-on-error: true
+
+      - name: Run tests and capture traces
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TRACEFORGE_SAVE_TRACES: true
+        run: pnpm test
+
+      - name: Run CI/CD risk analysis
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          pnpm traceforge ci check \
+            --baseline .ai-tests/baseline \
+            --current .ai-tests/traces \
+            --threshold 0.90 \
+            --block-critical \
+            --output junit > test-results.xml
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: test-results.xml
+
+      - name: Upload current traces as baseline
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-traces
+          path: .ai-tests/traces
+          retention-days: 90
+
+      - name: Comment PR with risk report
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('risk-report.md', 'utf8');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ⚠️ AI Quality Check Failed\n\n${report}`
+            });

@@ -3,10 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import type { Trace, StreamingTrace } from '@traceforge/shared';
 import { fetchTrace, createTestFromTrace } from '../api/client';
 import { StreamingTraceDetail } from './StreamingTraceDetail';
+import { DAGVisualization } from './DAGVisualization';
+import { RedactionAuditLog } from './RedactionAuditLog';
 
 export default function TraceDetail() {
   const { id } = useParams<{ id: string }>();
   const [trace, setTrace] = useState<Trace | null>(null);
+  const [sessionTraces, setSessionTraces] = useState<Trace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [testName, setTestName] = useState('');
@@ -24,6 +27,20 @@ export default function TraceDetail() {
       const data = await fetchTrace(traceId);
       setTrace(data);
       setTestName(`Test from ${traceId.substring(0, 8)}`);
+      
+      // Load session traces for DAG visualization
+      if (data.session_id) {
+        try {
+          const sessionResponse = await fetch(`/api/sessions/${data.session_id}/traces`);
+          if (sessionResponse.ok) {
+            const sessionData = await sessionResponse.json();
+            setSessionTraces(sessionData.traces || []);
+          }
+        } catch (err) {
+          console.warn('Failed to load session traces:', err);
+        }
+      }
+      
       setError(null);
     } catch (err: any) {
       setError(err.message);
@@ -115,7 +132,37 @@ export default function TraceDetail() {
               <p className="text-white">{trace.metadata.tokens_used}</p>
             </div>
           )}
+          {trace.step_id && (
+            <div>
+              <p className="text-sm text-gray-400">Step ID</p>
+              <p className="text-white font-mono text-xs">{trace.step_id}</p>
+            </div>
+          )}
+          {trace.organization_id && (
+            <div>
+              <p className="text-sm text-gray-400">Organization</p>
+              <p className="text-white">{trace.organization_id}</p>
+            </div>
+          )}
+          {trace.service_id && (
+            <div>
+              <p className="text-sm text-gray-400">Service</p>
+              <p className="text-white">{trace.service_id}</p>
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* DAG Visualization */}
+      {sessionTraces.length > 0 && trace.step_id && (
+        <div className="mb-6">
+          <DAGVisualization traces={sessionTraces} currentTraceId={trace.id} />
+        </div>
+      )}
+
+      {/* Redaction Audit Log */}
+      <div className="mb-6">
+        <RedactionAuditLog traceId={trace.id} />
       </div>
 
       {/* Streaming Details */}

@@ -15,6 +15,10 @@ export class SQLiteStorageBackend implements StorageBackend {
   constructor(dbPath?: string) {
     const path = dbPath || resolve(process.cwd(), ".ai-tests/traces.db");
     this.db = new Database(path);
+    // Enable WAL mode for production reliability
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('synchronous = NORMAL');
+    this.db.pragma('foreign_keys = ON');
     this.initSchema();
     this.runMigrations();
   }
@@ -34,7 +38,11 @@ export class SQLiteStorageBackend implements StorageBackend {
         session_id TEXT,
         step_index INTEGER,
         parent_trace_id TEXT,
-        state_snapshot JSON
+        state_snapshot JSON,
+        step_id TEXT UNIQUE,
+        parent_step_id TEXT,
+        organization_id TEXT,
+        service_id TEXT
       );
       
       CREATE INDEX IF NOT EXISTS idx_traces_timestamp ON traces(timestamp DESC);
@@ -43,6 +51,10 @@ export class SQLiteStorageBackend implements StorageBackend {
       CREATE INDEX IF NOT EXISTS idx_traces_created ON traces(created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_session_id ON traces(session_id);
       CREATE INDEX IF NOT EXISTS idx_session_step ON traces(session_id, step_index);
+      CREATE INDEX IF NOT EXISTS idx_step_id ON traces(step_id);
+      CREATE INDEX IF NOT EXISTS idx_parent_step_id ON traces(parent_step_id);
+      CREATE INDEX IF NOT EXISTS idx_organization_id ON traces(organization_id);
+      CREATE INDEX IF NOT EXISTS idx_service_id ON traces(service_id);
     `);
 
     // Create tests table
@@ -63,6 +75,24 @@ export class SQLiteStorageBackend implements StorageBackend {
       
       CREATE INDEX IF NOT EXISTS idx_tests_name ON tests(name);
       CREATE INDEX IF NOT EXISTS idx_tests_created ON tests(created_at DESC);
+    `);
+
+    // Create redaction audit table for PII scrubbing transparency
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS redaction_audit (
+        id TEXT PRIMARY KEY,
+        trace_id TEXT NOT NULL,
+        field_path TEXT NOT NULL,
+        masked_value_hash TEXT NOT NULL,
+        redaction_type TEXT NOT NULL,
+        timestamp INTEGER NOT NULL DEFAULT (unixepoch()),
+        user_id TEXT,
+        reversible INTEGER DEFAULT 0,
+        FOREIGN KEY (trace_id) REFERENCES traces(id) ON DELETE CASCADE
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_redaction_trace_id ON redaction_audit(trace_id);
+      CREATE INDEX IF NOT EXISTS idx_redaction_timestamp ON redaction_audit(timestamp DESC);
     `);
 
     // Create FTS5 virtual table for full-text search
@@ -122,6 +152,28 @@ export class SQLiteStorageBackend implements StorageBackend {
         
         CREATE INDEX IF NOT EXISTS idx_session_id ON traces(session_id);
         CREATE INDEX IF NOT EXISTS idx_session_step ON traces(session_id, step_index);
+      `);
+    }
+
+    // Migration: Adding DAG step tracking
+    if (!columnNames.includes("step_id")) {
+      this.db.exec(`
+        ALTER TABLE traces ADD COLUMN step_id TEXT UNIQUE;
+        ALTER TABLE traces ADD COLUMN parent_step_id TEXT;
+        
+        CREATE INDEX IF NOT EXISTS idx_step_id ON traces(step_id);
+        CREATE INDEX IF NOT EXISTS idx_parent_step_id ON traces(parent_step_id);
+      `);
+    }
+
+    // Migration: Adding organizational scope
+    if (!columnNames.includes("organization_id")) {
+      this.db.exec(`
+        ALTER TABLE traces ADD COLUMN organization_id TEXT;
+        ALTER TABLE traces ADD COLUMN service_id TEXT;
+        
+        CREATE INDEX IF NOT EXISTS idx_organization_id ON traces(organization_id);
+        CREATE INDEX IF NOT EXISTS idx_service_id ON traces(service_id);
       `);
     }
 
@@ -632,6 +684,191 @@ export class SQLiteStorageBackend implements StorageBackend {
 
     const rows: any[] = stmt.all(prefix, limit);
     return rows.map((r) => r.model).filter((m) => m !== null);
+  }
+
+  /**
+   * Get child steps of a given step (DAG traversal)
+   */
+  getStepChildren(stepId: string): Trace[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM traces WHERE parent_step_id = ? ORDER BY step_index ASC
+    `);
+    const rows: any[] = stmt.all(stepId);
+    return rows.map(row => this.rowToTrace(row));
+  }
+
+  /**
+   * Get all ancestor steps of a given step (DAG traversal)
+   */
+  getStepAncestors(stepId: string): Trace[] {
+    const ancestors: Trace[] = [];
+    const visited = new Set<string>();
+    
+    const traverse = (currentStepId: string) => {
+      if (visited.has(currentStepId)) return;
+      visited.add(currentStepId);
+      
+      const stmt = this.db.prepare(`
+        SELECT * FROM traces WHERE step_id = ?
+      `);
+      const row: any = stmt.get(currentStepId);
+      
+      if (row) {
+        ancestors.push(this.rowToTrace(row));
+        if (row.parent_step_id) {
+          traverse(row.parent_step_id);
+        }
+      }
+    };
+    
+    traverse(stepId);
+    return ancestors;
+  }
+
+  /**
+   * Detect cycles in the step DAG
+   */
+  detectCycles(sessionId: string): { hasCycle: boolean; cycle?: string[] } {
+    const stmt = this.db.prepare(`
+      SELECT step_id, parent_step_id FROM traces 
+      WHERE session_id = ? AND step_id IS NOT NULL
+    `);
+    const rows: any[] = stmt.all(sessionId);
+    
+    const graph = new Map<string, string>();
+    rows.forEach(row => {
+      if (row.parent_step_id) {
+        graph.set(row.step_id, row.parent_step_id);
+      }
+    });
+    
+    const visited = new Set<string>();
+    const recStack = new Set<string>();
+    
+    const hasCycleDFS = (node: string, path: string[]): { found: boolean; cycle?: string[] } => {
+      visited.add(node);
+      recStack.add(node);
+      path.push(node);
+      
+      const parent = graph.get(node);
+      if (parent) {
+        if (recStack.has(parent)) {
+          const cycleStart = path.indexOf(parent);
+          return { found: true, cycle: path.slice(cycleStart) };
+        }
+        if (!visited.has(parent)) {
+          const result = hasCycleDFS(parent, [...path]);
+          if (result.found) return result;
+        }
+      }
+      
+      recStack.delete(node);
+      return { found: false };
+    };
+    
+    for (const [stepId] of graph) {
+      if (!visited.has(stepId)) {
+        const result = hasCycleDFS(stepId, []);
+        if (result.found) {
+          return { hasCycle: true, cycle: result.cycle };
+        }
+      }
+    }
+    
+    return { hasCycle: false };
+  }
+
+  /**
+   * Log a redaction event to the audit table
+   */
+  logRedaction(
+    traceId: string,
+    fieldPath: string,
+    maskedValueHash: string,
+    redactionType: string,
+    userId?: string,
+    reversible: boolean = false
+  ): void {
+    const { randomUUID } = require('crypto');
+    const stmt = this.db.prepare(`
+      INSERT INTO redaction_audit (
+        id, trace_id, field_path, masked_value_hash, redaction_type, user_id, reversible
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      randomUUID(),
+      traceId,
+      fieldPath,
+      maskedValueHash,
+      redactionType,
+      userId || null,
+      reversible ? 1 : 0
+    );
+  }
+
+  /**
+   * Get redaction audit logs for a trace
+   */
+  getRedactionAudit(traceId: string): any[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM redaction_audit WHERE trace_id = ? ORDER BY timestamp DESC
+    `);
+    return stmt.all(traceId) as any[];
+  }
+
+  /**
+   * Clean up old traces based on retention policy
+   */
+  cleanupOldTraces(retentionDays: number): number {
+    const cutoffTimestamp = Math.floor(Date.now() / 1000) - (retentionDays * 24 * 60 * 60);
+    const stmt = this.db.prepare(`
+      DELETE FROM traces WHERE created_at < ?
+    `);
+    const result = stmt.run(cutoffTimestamp);
+    return result.changes;
+  }
+
+  /**
+   * Run VACUUM to reclaim space
+   */
+  vacuum(): void {
+    this.db.exec('VACUUM');
+  }
+
+  /**
+   * Get database size metrics
+   */
+  getDbMetrics(): { pageCount: number; pageSize: number; totalSize: number } {
+    const pageCount = this.db.pragma('page_count', { simple: true }) as number;
+    const pageSize = this.db.pragma('page_size', { simple: true }) as number;
+    return {
+      pageCount,
+      pageSize,
+      totalSize: pageCount * pageSize
+    };
+  }
+
+  /**
+   * Helper to convert row to Trace object
+   */
+  private rowToTrace(row: any): Trace {
+    return {
+      id: row.id,
+      timestamp: row.timestamp,
+      endpoint: row.endpoint,
+      request: JSON.parse(row.request),
+      response: row.response ? JSON.parse(row.response) : null,
+      metadata: JSON.parse(row.metadata),
+      schema_version: row.schema_version,
+      session_id: row.session_id || undefined,
+      step_index: row.step_index !== null ? row.step_index : undefined,
+      parent_trace_id: row.parent_trace_id || undefined,
+      state_snapshot: row.state_snapshot ? JSON.parse(row.state_snapshot) : undefined,
+      step_id: row.step_id || undefined,
+      parent_step_id: row.parent_step_id || undefined,
+      organization_id: row.organization_id || undefined,
+      service_id: row.service_id || undefined,
+    };
   }
 
   async close(): Promise<void> {

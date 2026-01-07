@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added (2026 Q1 - Week 3: Risk Scoring) - January 3, 2026
+
 - **Risk Scoring Engine**: Automated risk classification for AI response changes
   - Analyzes differences between baseline and current responses
   - Three risk categories: Cosmetic (1-3), Semantic (4-7), Safety (8-10)
@@ -55,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Troubleshooting guide and FAQ
 
 ### Added (2026 Q1 - Week 1 & 2: Semantic Assertions + Polish)
+
 - **Semantic Assertions**: Meaning-based test validation using embeddings
   - `semantic` assertion type: Validate responses by semantic similarity (cosine similarity)
   - `semantic-contradiction` assertion type: Detect contradictions with forbidden statements
@@ -72,7 +74,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated type definitions for new assertion types (11 total assertion types)
 - Comprehensive test suite for semantic assertions (47 CLI tests passing)
 - **Week 2 Polish & Integration Testing**:
-  - Performance benchmark tool (`packages/proxy/benchmarks/embeddings.js`)
   - Improved error messages with helpful context and suggestions
   - Enhanced validation for empty texts and API key issues
   - Better error handling for rate limits and network issues
@@ -80,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated README.md with semantic assertions documentation
 
 ### Changed (2026 Q1 - Week 2)
+
 - Enhanced error messages for semantic assertions with actionable suggestions
 - Added validation for empty expected/forbidden statements
 - Improved API error messages with status code classification (401, 429, 400)
@@ -87,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Better user feedback for common issues (missing API key, rate limits)
 
 ### Added (2025-12-20 - VCR Mode)
+
 - **VCR Mode**: Record/replay functionality for deterministic, offline testing
   - Environment variables: `TRACEFORGE_VCR_MODE`, `TRACEFORGE_VCR_MATCH`, `TRACEFORGE_VCR_DIR`
   - Four modes: `off`, `record`, `replay`, `auto`
@@ -99,6 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-12-20
 
 ### Added
+
 - Initial release of TraceForge.baseline.
 - Multi-provider support (OpenAI, Anthropic, Gemini, Ollama).
 - Web UI for trace visualization and comparison.
@@ -107,12 +111,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI/CD workflows with GitHub Actions.
 
 ### Changed
+
 - **License**: Changed from MIT to Apache 2.0.
 - Improved error handling in Proxy server.
 - Enhanced streaming support with chunk limits to prevent OOM.
 - Updated documentation structure.
 
 ### Security
+
 - Added `SECURITY.md` policy.
 - Implemented strict Zod schema validation for all inputs.
 - Added redaction middleware for sensitive keys.
