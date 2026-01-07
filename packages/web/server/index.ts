@@ -10,7 +10,6 @@ import type { Trace, Config, Test } from "@traceforge/shared";
 import { randomUUID } from "crypto";
 import { fileURLToPath } from "url";
 import { registerAuth, loadAuthConfig } from "./auth.js";
-import { createStorageBackend } from "../../proxy/src/storage-factory.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -178,22 +177,23 @@ fastify.get<{
     model?: string;
     status?: string;
   };
-}>("/api/traces/search", async (request, reply) => {
+}>("/api/traces/search", async (request) => {
   try {
     const { q, limit = "50", offset = "0", model, status } = request.query;
 
     if (!q || q.trim().length === 0) {
-      return reply.code(400).send({ error: "Query parameter q is required" });
+      return { error: "Query parameter q is required" };
     }
 
-    // Use SQLite backend for search
+    // Dynamic require to avoid build-time dependency issues
+    const { createStorageBackend } = require("../../proxy/dist/storage-factory.js");
     const storage = createStorageBackend("sqlite");
 
     if (!storage.searchTraces) {
-      return reply.code(501).send({
+      return {
         error:
           "Full-text search not supported with current storage backend. Enable SQLite storage.",
-      });
+      };
     }
 
     const results = await storage.searchTraces(q, {
@@ -208,14 +208,14 @@ fastify.get<{
     return { results, total, query: q };
   } catch (error: any) {
     request.log.error(error);
-    return reply.code(500).send({ error: error.message });
+    return { error: error.message };
   }
 });
 
 // GET /api/traces/search/suggestions - Search autocomplete
 fastify.get<{ Querystring: { prefix: string } }>(
   "/api/traces/search/suggestions",
-  async (request, reply) => {
+  async (request) => {
     try {
       const { prefix } = request.query;
 
@@ -223,6 +223,7 @@ fastify.get<{ Querystring: { prefix: string } }>(
         return { suggestions: [] };
       }
 
+      const { createStorageBackend } = require("../../proxy/dist/storage-factory.js");
       const storage = createStorageBackend("sqlite");
 
       if (!storage.getSearchSuggestions) {

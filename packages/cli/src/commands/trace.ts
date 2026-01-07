@@ -216,18 +216,20 @@ traceCommand
 // trace search command
 traceCommand
   .command('search <query>')
-  .description('Full-text search across all traces')
+  .description('Full-text search across all traces (requires SQLite storage)')
   .option('-l, --limit <number>', 'Limit number of results', '20')
   .option('-m, --model <model>', 'Filter by model')
   .option('-s, --status <status>', 'Filter by status (success/error)')
   .action(async (query: string, options: { limit: string; model?: string; status?: string }) => {
     try {
-      // Import SQLiteStorageBackend
-      const { SQLiteStorageBackend } = await import('../../../proxy/src/storage-sqlite.js');
-      const storage = new SQLiteStorageBackend();
+      // Dynamic require to avoid build-time dependency issues
+      // This works because the CLI runs after build completes
+      const { createStorageBackend } = require('@traceforge/proxy/dist/storage-factory.js');
+      const storage = createStorageBackend('sqlite');
 
       if (!storage.searchTraces) {
         console.log(chalk.red('Full-text search requires SQLite storage backend'));
+        console.log(chalk.yellow('Set TRACEFORGE_STORAGE_BACKEND=sqlite in your .env file'));
         process.exit(1);
       }
 
@@ -263,7 +265,12 @@ traceCommand
       console.log(table.toString());
       console.log(chalk.gray(`\nShowing ${results.length} results`));
     } catch (error: any) {
-      console.log(chalk.red(`Search failed: ${error.message}`));
+      if (error.code === 'MODULE_NOT_FOUND' || error.message.includes('Cannot find module')) {
+        console.log(chalk.red('SQLite storage backend not available'));
+        console.log(chalk.yellow('Make sure the proxy package is built: pnpm build'));
+      } else {
+        console.log(chalk.red(`Search failed: ${error.message}`));
+      }
       process.exit(1);
     }
   });
