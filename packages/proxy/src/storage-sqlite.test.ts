@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { unlinkSync, existsSync } from "fs";
+import { unlinkSync, existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
 import { SQLiteStorageBackend } from "./storage-sqlite";
 import type { Trace, Test } from "@traceforge/shared";
@@ -9,6 +9,12 @@ describe("SQLiteStorageBackend", () => {
   let backend: SQLiteStorageBackend;
 
   beforeEach(() => {
+    // Ensure .ai-tests directory exists
+    const testDir = resolve(process.cwd(), ".ai-tests");
+    if (!existsSync(testDir)) {
+      mkdirSync(testDir, { recursive: true });
+    }
+
     // Clean up any existing test database
     if (existsSync(testDbPath)) {
       unlinkSync(testDbPath);
@@ -164,13 +170,18 @@ describe("SQLiteStorageBackend", () => {
     });
 
     it("cleans up traces by age", async () => {
-      // Save traces with different ages
+      // For this test to work with created_at, we need to manually set created_at
+      // by directly manipulating the database after insert
       await backend.saveTrace(createTestTrace("old-1", 86400 * 2)); // 2 days old
-      await backend.saveTrace(createTestTrace("old-2", 86400 * 3)); // 3 days old
+      await backend.saveTrace(createTestTrace("old-2", 86400 * 3)); // 3 days old  
       await backend.saveTrace(createTestTrace("new-1", 0)); // Fresh
 
-      // Wait a moment for timestamps to settle
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Manually update created_at for old traces to simulate age
+      // @ts-ignore - accessing private db for testing
+      const db = backend['db'];
+      const cutoffTime = Math.floor(Date.now() / 1000) - 86400 * 2; // 2 days ago
+      db.prepare("UPDATE traces SET created_at = ? WHERE id = 'old-1'").run(cutoffTime);
+      db.prepare("UPDATE traces SET created_at = ? WHERE id = 'old-2'").run(cutoffTime - 86400); // 3 days ago
 
       const deleted = await backend.cleanup(86400); // Delete older than 1 day
       expect(deleted).toBe(2);
@@ -193,7 +204,12 @@ describe("SQLiteStorageBackend", () => {
       await backend.saveTrace(createTestTrace("new-1", 0));
       await backend.saveTrace(createTestTrace("new-2", 0));
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Manually update created_at for old traces
+      // @ts-ignore - accessing private db for testing
+      const db = backend['db'];
+      const cutoffTime = Math.floor(Date.now() / 1000) - 86400 * 2;
+      db.prepare("UPDATE traces SET created_at = ? WHERE id = 'old-1'").run(cutoffTime);
+      db.prepare("UPDATE traces SET created_at = ? WHERE id = 'old-2'").run(cutoffTime - 86400);
 
       const deleted = await backend.cleanup(86400, 2); // Max age 1 day, max count 2
       expect(deleted).toBeGreaterThanOrEqual(2);
@@ -386,6 +402,374 @@ describe("SQLiteStorageBackend", () => {
 
       const retrieved = await backend.getTrace("trace-child");
       expect(retrieved?.parent_trace_id).toBe("trace-parent");
+    });
+  });
+
+  describe("FTS5 Full-Text Search", () => {
+    const createTraceWithContent = (
+      id: string,
+      content: string,
+      model: string = "gpt-4"
+    ): Trace => ({
+      id,
+      timestamp: new Date().toISOString(),
+      endpoint: "/v1/chat/completions",
+      request: {
+        model,
+        messages: [{ role: "user", content }],
+      },
+      response: {
+        id: `response-${id}`,
+        object: "chat.completion",
+        created: Math.floor(Date.now() / 1000),
+        model,
+        choices: [
+          {
+            message: { role: "assistant", content: `Response: ${content}` },
+            index: 0,
+            finish_reason: "stop",
+          },
+        ],
+      },
+      metadata: {
+        model,
+        status: "success",
+        duration_ms: 100,
+      },
+      schema_version: "1.0.0",
+    });
+
+    describe("searchTraces", () => {
+      it("finds traces by request content", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "authentication error")
+        );
+        await backend.saveTrace(
+          createTraceWithContent("trace-2", "successful login")
+        );
+
+        const results = await backend.searchTraces("authentication");
+        expect(results.length).toBeGreaterThan(0);
+        expect(
+          results.some((r) =>
+            r.request.messages?.some((m) => m.content.includes("authentication"))
+          )
+        ).toBe(true);
+      });
+
+      it("finds traces by response content", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "invalid credentials")
+        );
+
+        const results = await backend.searchTraces("credentials");
+        expect(results.length).toBeGreaterThan(0);
+        expect(
+          results.some((r) =>
+            r.response?.choices?.[0]?.message?.content?.includes(
+              "credentials"
+            )
+          )
+        ).toBe(true);
+      });
+
+      it("supports boolean AND operator", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "user login success")
+        );
+        await backend.saveTrace(
+          createTraceWithContent("trace-2", "user logout")
+        );
+
+        const results = await backend.searchTraces("user AND login");
+        expect(results).toHaveLength(1);
+        expect(results[0].id).toBe("trace-1");
+      });
+
+      it("supports boolean OR operator", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "authentication error")
+        );
+        await backend.saveTrace(
+          createTraceWithContent("trace-2", "authorization failure")
+        );
+        await backend.saveTrace(
+          createTraceWithContent("trace-3", "successful login")
+        );
+
+        const results = await backend.searchTraces("error OR failure");
+        expect(results.length).toBeGreaterThanOrEqual(2);
+      });
+
+      it("supports NOT operator", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "authentication success")
+        );
+        await backend.saveTrace(
+          createTraceWithContent("trace-2", "authentication error")
+        );
+
+        const results = await backend.searchTraces("authentication NOT error");
+        expect(results.length).toBeGreaterThan(0);
+        expect(
+          results.every(
+            (r) =>
+              !r.request.messages?.some((m) => m.content.includes("error"))
+          )
+        ).toBe(true);
+      });
+
+      it("respects limit and offset for pagination", async () => {
+        for (let i = 0; i < 50; i++) {
+          await backend.saveTrace(
+            createTraceWithContent(`trace-${i}`, "test query")
+          );
+        }
+
+        const page1 = await backend.searchTraces("test", {
+          limit: 10,
+          offset: 0,
+        });
+        const page2 = await backend.searchTraces("test", {
+          limit: 10,
+          offset: 10,
+        });
+
+        expect(page1).toHaveLength(10);
+        expect(page2).toHaveLength(10);
+        expect(page1[0].id).not.toBe(page2[0].id);
+      });
+
+      it("filters by model", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "test query", "gpt-4")
+        );
+        await backend.saveTrace(
+          createTraceWithContent("trace-2", "test query", "claude-3")
+        );
+
+        const results = await backend.searchTraces("test", {
+          filterModel: "gpt-4",
+        });
+        expect(results).toHaveLength(1);
+        expect(results[0].metadata.model).toBe("gpt-4");
+      });
+
+      it("filters by status", async () => {
+        const successTrace = createTraceWithContent(
+          "trace-1",
+          "test query",
+          "gpt-4"
+        );
+        successTrace.metadata.status = "success";
+
+        const errorTrace = createTraceWithContent(
+          "trace-2",
+          "test query",
+          "gpt-4"
+        );
+        errorTrace.metadata.status = "error";
+        errorTrace.response = null;
+
+        await backend.saveTrace(successTrace);
+        await backend.saveTrace(errorTrace);
+
+        const results = await backend.searchTraces("test", {
+          filterStatus: "success",
+        });
+        expect(results.length).toBeGreaterThan(0);
+        expect(results.every((r) => r.metadata.status === "success")).toBe(
+          true
+        );
+      });
+
+      it("returns results ordered by relevance (BM25)", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "error error error error")
+        );
+        await backend.saveTrace(createTraceWithContent("trace-2", "error"));
+
+        const results = await backend.searchTraces("error");
+        expect(results.length).toBeGreaterThanOrEqual(2);
+        // First result should be more relevant (more occurrences)
+        expect(results[0].id).toBe("trace-1");
+      });
+
+      it("handles empty results gracefully", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "authentication")
+        );
+
+        const results = await backend.searchTraces("nonexistent");
+        expect(results).toHaveLength(0);
+      });
+
+      it("searches across multiple fields", async () => {
+        const trace = createTraceWithContent(
+          "trace-1",
+          "user authentication",
+          "gpt-4"
+        );
+        trace.endpoint = "/v1/chat/completions";
+        await backend.saveTrace(trace);
+
+        // Should find by model
+        let results = await backend.searchTraces("gpt-4");
+        expect(results.length).toBeGreaterThan(0);
+
+        // Should find by endpoint
+        results = await backend.searchTraces("chat");
+        expect(results.length).toBeGreaterThan(0);
+      });
+    });
+
+    describe("countSearchResults", () => {
+      it("counts total matching traces", async () => {
+        for (let i = 0; i < 100; i++) {
+          await backend.saveTrace(
+            createTraceWithContent(`trace-${i}`, "test query")
+          );
+        }
+
+        const count = await backend.countSearchResults("test");
+        expect(count).toBe(100);
+      });
+
+      it("returns 0 for no matches", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "authentication")
+        );
+
+        const count = await backend.countSearchResults("nonexistent");
+        expect(count).toBe(0);
+      });
+
+      it("counts correctly with complex queries", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "authentication error")
+        );
+        await backend.saveTrace(
+          createTraceWithContent("trace-2", "authentication success")
+        );
+        await backend.saveTrace(
+          createTraceWithContent("trace-3", "authorization error")
+        );
+
+        const count = await backend.countSearchResults(
+          "authentication AND error"
+        );
+        expect(count).toBe(1);
+      });
+    });
+
+    describe("getSearchSuggestions", () => {
+      it("suggests models based on prefix", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "test", "gpt-4")
+        );
+        await backend.saveTrace(
+          createTraceWithContent("trace-2", "test", "gpt-3.5-turbo")
+        );
+        await backend.saveTrace(
+          createTraceWithContent("trace-3", "test", "claude-3")
+        );
+
+        const suggestions = await backend.getSearchSuggestions("gpt");
+        expect(suggestions.length).toBeGreaterThan(0);
+        expect(suggestions).toContain("gpt-4");
+        expect(suggestions).toContain("gpt-3.5-turbo");
+        expect(suggestions).not.toContain("claude-3");
+      });
+
+      it("respects limit parameter", async () => {
+        for (let i = 0; i < 20; i++) {
+          await backend.saveTrace(
+            createTraceWithContent(`trace-${i}`, "test", `model-${i}`)
+          );
+        }
+
+        const suggestions = await backend.getSearchSuggestions("model", 5);
+        expect(suggestions.length).toBeLessThanOrEqual(5);
+      });
+
+      it("returns empty array for no matches", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "test", "gpt-4")
+        );
+
+        const suggestions = await backend.getSearchSuggestions("claude");
+        expect(suggestions).toHaveLength(0);
+      });
+    });
+
+    describe("FTS5 Triggers", () => {
+      it("automatically indexes traces on insert", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "automatically indexed")
+        );
+
+        const results = await backend.searchTraces("automatically");
+        expect(results).toHaveLength(1);
+        expect(results[0].id).toBe("trace-1");
+      });
+
+      it("updates FTS index on trace update", async () => {
+        const trace = createTraceWithContent(
+          "trace-1",
+          "original content",
+          "gpt-4"
+        );
+        await backend.saveTrace(trace);
+
+        // Update the trace with new request and response
+        trace.request.messages = [
+          { role: "user", content: "updated content" },
+        ];
+        if (trace.response) {
+          trace.response.choices[0].message!.content = "Response: updated content";
+        }
+        await backend.saveTrace(trace);
+
+        // Should find by new content
+        const results = await backend.searchTraces("updated");
+        expect(results.length).toBeGreaterThan(0);
+
+        // Should not find by old content
+        const oldResults = await backend.searchTraces("original");
+        expect(oldResults).toHaveLength(0);
+      });
+
+      it("removes from FTS index on trace delete", async () => {
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "to be deleted")
+        );
+
+        // Verify it's searchable
+        let results = await backend.searchTraces("deleted");
+        expect(results).toHaveLength(1);
+
+        // Delete the trace
+        await backend.deleteTrace("trace-1");
+
+        // Should not be searchable anymore
+        results = await backend.searchTraces("deleted");
+        expect(results).toHaveLength(0);
+      });
+    });
+
+    describe("FTS5 Migration", () => {
+      it("populates FTS index with existing traces on migration", async () => {
+        // This test verifies that the migration in runMigrations() works
+        // Since we're using a fresh database in beforeEach, the FTS table
+        // is created in initSchema and the migration runs automatically
+
+        await backend.saveTrace(
+          createTraceWithContent("trace-1", "existing trace")
+        );
+
+        const results = await backend.searchTraces("existing");
+        expect(results).toHaveLength(1);
+      });
     });
   });
 });

@@ -72,9 +72,7 @@ export class SQLiteStorageBackend implements StorageBackend {
         endpoint,
         request_content,
         response_content,
-        model,
-        content='traces',
-        content_rowid='rowid'
+        model
       );
       
       -- Triggers to keep FTS index in sync
@@ -142,9 +140,7 @@ export class SQLiteStorageBackend implements StorageBackend {
           endpoint,
           request_content,
           response_content,
-          model,
-          content='traces',
-          content_rowid='rowid'
+          model
         );
         
         CREATE TRIGGER IF NOT EXISTS traces_fts_insert AFTER INSERT ON traces BEGIN
@@ -257,12 +253,12 @@ export class SQLiteStorageBackend implements StorageBackend {
 
     // Apply filters
     if (filter.model) {
-      query += ' AND json_extract(metadata, "$.model") = ?';
+      query += " AND json_extract(metadata, '$.model') = ?";
       params.push(filter.model);
     }
 
     if (filter.status) {
-      query += ' AND json_extract(metadata, "$.status") = ?';
+      query += " AND json_extract(metadata, '$.status') = ?";
       params.push(filter.status);
     }
 
@@ -531,6 +527,21 @@ export class SQLiteStorageBackend implements StorageBackend {
   ): Promise<Trace[]> {
     const { limit = 50, offset = 0, filterModel, filterStatus } = options;
 
+    // Prepare FTS5 query - if query doesn't contain FTS operators, treat as phrase
+    // This handles special characters like hyphens in model names (e.g., gpt-4)
+    let ftsQuery = query;
+    if (
+      !query.includes(" AND ") &&
+      !query.includes(" OR ") &&
+      !query.includes(" NOT ") &&
+      !query.startsWith('"')
+    ) {
+      // Check if query contains special characters that need quoting
+      if (/[^a-zA-Z0-9\s]/.test(query)) {
+        ftsQuery = `"${query}"`;
+      }
+    }
+
     // Build search query
     let sql = `
       SELECT traces.*, 
@@ -540,7 +551,7 @@ export class SQLiteStorageBackend implements StorageBackend {
       WHERE traces_fts MATCH ?
     `;
 
-    const params: any[] = [query];
+    const params: any[] = [ftsQuery];
 
     // Apply additional filters
     if (filterModel) {
@@ -581,13 +592,27 @@ export class SQLiteStorageBackend implements StorageBackend {
    * Count total search results without fetching all rows
    */
   async countSearchResults(query: string): Promise<number> {
+    // Prepare FTS5 query - if query doesn't contain FTS operators, treat as phrase
+    let ftsQuery = query;
+    if (
+      !query.includes(" AND ") &&
+      !query.includes(" OR ") &&
+      !query.includes(" NOT ") &&
+      !query.startsWith('"')
+    ) {
+      // Check if query contains special characters that need quoting
+      if (/[^a-zA-Z0-9\s]/.test(query)) {
+        ftsQuery = `"${query}"`;
+      }
+    }
+
     const stmt = this.db.prepare(`
       SELECT COUNT(*) as count
       FROM traces_fts
       WHERE traces_fts MATCH ?
     `);
 
-    const row: any = stmt.get(query);
+    const row: any = stmt.get(ftsQuery);
     return row.count;
   }
 
@@ -599,14 +624,14 @@ export class SQLiteStorageBackend implements StorageBackend {
     limit: number = 10
   ): Promise<string[]> {
     const stmt = this.db.prepare(`
-      SELECT DISTINCT model 
-      FROM traces_fts 
-      WHERE model MATCH ? || '*'
+      SELECT DISTINCT json_extract(metadata, '$.model') as model
+      FROM traces
+      WHERE json_extract(metadata, '$.model') LIKE ? || '%'
       LIMIT ?
     `);
 
     const rows: any[] = stmt.all(prefix, limit);
-    return rows.map((r) => r.model);
+    return rows.map((r) => r.model).filter((m) => m !== null);
   }
 
   async close(): Promise<void> {
