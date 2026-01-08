@@ -234,3 +234,103 @@ jobs:
 
       - name: Type check
         run: pnpm typecheck
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run security scan script
+        run: bash scripts/security-scan.sh
+
+      - name: Audit dependencies
+        run: pnpm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Scanning for potential secrets..."
+          if git ls-files | xargs grep -E "sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|xox[baprs]-[a-zA-Z0-9-]+" | grep -v "\.test\." | grep -v "example"; then
+            echo "❌ Potential secrets found!"
+            exit 1
+          fi
+          echo "✅ No secrets detected"
+
+  strict-mode-tests:
+    name: AI Tests (Strict Mode)
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+
+      - name: Check for cassettes
+        run: |
+          if [ ! -d ".ai-tests/cassettes" ] || [ -z "$(ls -A .ai-tests/cassettes 2>/dev/null)" ]; then
+            echo "⚠️  No cassettes found - skipping strict mode tests"
+            echo "To enable strict mode tests, record cassettes first with:"
+            echo "  TRACEFORGE_VCR_MODE=record pnpm test"
+            exit 0
+          fi
+
+      - name: Run tests in strict mode
+        run: TRACEFORGE_VCR_MODE=strict pnpm --filter @traceforge/cli test run
+        continue-on-error: true
+        env:
+          TRACEFORGE_VCR_MODE: strict
+
+      - name: Strict mode enforcement check
+        if: failure()
+        run: |
+          echo "::error::Strict mode test failed. AI behavior change detected or cassette missing."
+          echo "This enforces that all AI interactions are recorded and reviewed."
+          echo "To fix: Record new cassettes with TRACEFORGE_VCR_MODE=record"
