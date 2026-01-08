@@ -52,7 +52,7 @@ export function DAGVisualization({
     const processedSteps = new Set<string>();
 
     while (queue.length > 0) {
-      const { trace, level, parentX } = queue.shift()!;
+      const { trace, level } = queue.shift()!;
       if (!trace.step_id || processedSteps.has(trace.step_id)) continue;
 
       processedSteps.add(trace.step_id);
@@ -71,7 +71,7 @@ export function DAGVisualization({
       nodeMap.set(trace.step_id, node);
 
       // Add children to queue
-      children.forEach((child, idx) => {
+      children.forEach((child) => {
         queue.push({
           trace: child,
           level: level + 1,
@@ -88,7 +88,7 @@ export function DAGVisualization({
       levelNodes.set(node.level, nodesAtLevel);
     });
 
-    levelNodes.forEach((nodesAtLevel, level) => {
+    levelNodes.forEach((nodesAtLevel) => {
       const spacing = 120;
       const totalWidth = (nodesAtLevel.length - 1) * spacing;
       const startX = 300 - totalWidth / 2; // Center around x=300
