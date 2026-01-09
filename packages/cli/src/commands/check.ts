@@ -567,18 +567,19 @@ function formatChangeDescription(change: SnapshotChange): string {
 function printOutputDiff(before: string, after: string): void {
   const maxWidth = 55;
   const truncate = (str: string) => {
-    if (str.length > maxWidth) {
-      return str.substring(0, maxWidth - 3) + "...";
+    if (str.length > maxWidth - 2) {
+      return str.substring(0, maxWidth - 5) + "...";
     }
     return str;
   };
 
+  const beforeTrunc = truncate(before);
+  const afterTrunc = truncate(after);
+
   console.log("  ┌" + "─".repeat(maxWidth) + "┐");
-  console.log(`  │ ${chalk.gray("Before:")} ${truncate(before).padEnd(maxWidth - 9)} │`);
-  console.log(`  │ ${truncate(before).padStart(maxWidth)}│`);
+  console.log(`  │ ${chalk.gray("Before:")} ${beforeTrunc.padEnd(maxWidth - 9)} │`);
   console.log("  │" + " ".repeat(maxWidth) + "│");
-  console.log(`  │ ${chalk.gray("After:")}  ${truncate(after).padEnd(maxWidth - 9)} │`);
-  console.log(`  │ ${truncate(after).padStart(maxWidth)}│`);
+  console.log(`  │ ${chalk.gray("After:")}  ${afterTrunc.padEnd(maxWidth - 9)} │`);
   console.log("  └" + "─".repeat(maxWidth) + "┘");
 }
 
