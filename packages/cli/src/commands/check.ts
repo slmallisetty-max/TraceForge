@@ -139,7 +139,13 @@ async function loadAllCassettes(
 
             cassettes.push({ cassette, path: cassettePath });
           } catch (error: any) {
-            // Invalid JSON or file read error
+            // Invalid JSON or file read error - report as empty cassette
+            // This will be caught in validation and reported to the user
+            console.warn(
+              chalk.yellow(
+                `Warning: Failed to parse ${relative(cassettesDir, cassettePath)}: ${error.message}`
+              )
+            );
             cassettes.push({
               cassette: {} as Cassette,
               path: cassettePath,
@@ -185,8 +191,9 @@ function validateCassette(
 
   // Check request fields
   if (cassette.request) {
+    // Model can be at top-level (older format) or in request (newer format)
     if (!cassette.model && !cassette.request.model) {
-      errors.push(`${path}: Missing model field`);
+      errors.push(`${path}: Missing model field (checked both root and request.model)`);
     }
 
     if (!cassette.request.messages && !cassette.request.prompt) {
@@ -205,9 +212,13 @@ function validateCassette(
   }
 
   // Check response fields
+  // Different providers use different response formats:
+  // - OpenAI: response.choices[].message.content
+  // - Some formats: response.body
+  // - Simplified format: response.content
   if (cassette.response) {
     if (!cassette.response.body && !cassette.response.choices && !cassette.response.content) {
-      errors.push(`${path}: Missing response content`);
+      errors.push(`${path}: Missing response content (checked body, choices, and content fields)`);
     }
   }
 
