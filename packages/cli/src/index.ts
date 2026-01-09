@@ -8,6 +8,7 @@ import { startCommand } from "./commands/start.js";
 import { vcrCommand } from "./commands/vcr.js";
 import { embeddingsCommand } from "./commands/embeddings.js";
 import { ciCommand } from "./commands/ci.js";
+import { checkCommand } from "./commands/check.js";
 
 const program = new Command();
 
@@ -21,6 +22,7 @@ program
 // Register commands
 program.addCommand(startCommand);
 program.addCommand(initCommand);
+program.addCommand(checkCommand);
 program.addCommand(traceCommand);
 program.addCommand(testCommand);
 program.addCommand(vcrCommand);
