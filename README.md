@@ -1,125 +1,125 @@
 # TraceForge
 
-**System of record for AI behavior with enforcement, policy, and auditability**
+> **If your AI output changes, your build will fail.**
 
-[![Status](https://img.shields.io/badge/status-v2.0-brightgreen)]()
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)]()
-[![License](https://img.shields.io/badge/license-MIT-blue)]()
+That's it. That's the product.
 
 ---
 
-## What is TraceForge?
+## The Problem
 
-TraceForge is the **system of record for AI behavior changes**. It establishes authoritative control over when and how AI outputs can change in your applications by enforcing determinism, policy compliance, and auditability across the entire development lifecycle.
+You changed a prompt.  
+Or swapped to a new model.  
+Or updated context length.
 
-When TraceForge is installed, it becomes the **authoritative gate** for AI behavior changes—no AI output modification reaches production without an explicit, recorded, and reviewable snapshot.
+Tests still passed.  
+CI went green.  
+You deployed.
 
-## What Changes When TraceForge Is Enabled
+**Then:**
+- Customer support got flooded
+- The model started refusing valid requests
+- JSON parsing broke in production
+- You spent 6 hours rolling back
 
-Installing TraceForge fundamentally changes how AI behavior evolves in your system:
+**TraceForge makes this impossible.**
 
-- ✅ **AI behavior cannot change without a recorded snapshot** — Every response is captured and versioned
-- ✅ **CI pipelines become authoritative gates** — No AI output changes bypass review
-- ✅ **Every response has a historical lineage** — Full audit trail from first deployment
-- ✅ **Rollbacks are possible without re-running models** — Instant reversion to any previous state
-- ✅ **Auditors can inspect AI decisions post-hoc** — Complete forensic capability
-- ✅ **Policy violations are non-bypassable** — Automated enforcement at the infrastructure level
+---
 
-These aren't features you can opt into—they're infrastructure-level guarantees once TraceForge is deployed in strict mode.
-
-### The Problem
-
-Traditional software governance breaks down with LLMs:
-
-- ❌ Non-deterministic outputs make assertions impossible
-- ❌ API costs explode in CI with repeated calls
-- ❌ No way to prevent untested AI changes from reaching production
-- ❌ AI behavior changes bypass code review and audit trails
-
-### The Solution
-
-TraceForge establishes a **control plane for AI behavior** with VCR-style record/replay and strict enforcement:
+## How It Works
 
 ```bash
-# Development: Record AI responses as versioned snapshots
-TRACEFORGE_VCR_MODE=record npm start
+# 1. Run your AI code
+npm test
+✓ All tests pass
 
-# CI: Enforce determinism (no API calls, hard fail on changes)
-TRACEFORGE_VCR_MODE=strict npm test  # ← Fails if AI output changed
+# 2. Change your prompt
+# (edit src/prompts.py)
+
+# 3. Run tests again
+npm test
+✗ BLOCKED: AI behavior changed without approval
+
+# 4. Review and approve
+traceforge diff
+traceforge snapshot approve
+git commit -m "Approved: switched to gpt-4o"
 ```
 
-**Result:** TraceForge becomes the authoritative source of truth—every AI behavior change requires an explicit snapshot update and code review.
+Your CI fails **before** production breaks.
 
 ---
 
-## Core Features
+## Installation
 
-### 🎬 VCR Record/Replay
+```bash
+npm install traceforge
+export OPENAI_BASE_URL=http://localhost:8787/v1
+```
 
-- **Record** LLM interactions as versioned snapshots of record
-- **Replay** deterministically in tests (zero API costs)
-- **Strict mode** for CI: establishes TraceForge as the final authority on AI changes
-- **Multi-provider**: OpenAI, Anthropic, Google Gemini, Ollama
+Add to CI:
+```yaml
+- name: Check AI behavior
+  run: traceforge check  # ← Fails if behavior changed
+```
 
-### ✅ Smart Assertions (11 Types)
+Done.
 
-- **Semantic validation**: Enforce meaning, not exact text match
-- **Structural checks**: JSON schema, regex patterns, field presence
-- **Content safety**: Detect contradictions, toxicity, PII leaks
-- **Performance**: Latency, token usage, cost thresholds
+---
 
-### 🔒 CI/CD Enforcement
+## This is for you if:
 
-- **Hard fail** on unrecorded AI interactions in CI
-- **Git-based workflow**: Commit snapshots, review diffs
-- **Non-bypassable**: Cannot disable checks or skip validation
-- **Zero cloud dependencies**: Runs entirely locally
+You've ever:
+- ✓ Rolled back because AI output changed
+- ✓ Hotfixed a prompt at 2am
+- ✓ Watched tests pass but production fail
+- ✓ Wished you caught AI changes earlier
 
-### 🔍 Developer Experience
+This is **not** for you if:
+- ✗ You don't deploy AI to production
+- ✗ You're fine with non-deterministic behavior
+- ✗ You don't have CI
 
-- **Web UI**: Browse traces, compare diffs, debug failures
-- **CLI**: Test runner, trace management, risk analysis
-- **VS Code extension**: Run tests in editor, view traces inline
-- **Risk scoring**: Auto-classify changes as decision signals for deployment gates
+---
+
+## Philosophy
+
+Most AI tools optimize for **building faster**.  
+TraceForge optimizes for **breaking less**.
+
+We make AI behavior changes:
+1. Visible
+2. Blockable
+3. Unignorable
+
+Everything else is a side effect.
 
 ---
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js 18+
-- pnpm 8+
-- An OpenAI API key (for semantic assertions - optional)
-
-### Installation
+### 1. Install and Start Proxy
 
 ```bash
 # Clone and install
 git clone <repository-url>
 cd traceforge
 pnpm install
+pnpm build
 
-# Start all services
-pnpm dev
+# Start proxy server
+pnpm --filter @traceforge/proxy start
+# Proxy running at http://localhost:8787
 ```
 
-**Services will be running at:**
-
-- 🔵 Proxy Server: `http://localhost:8787`
-- 🟢 Web UI: `http://localhost:5173`
-- 🟣 API Server: `http://localhost:3001`
-
-### Your First Test
-
-**1. Point your app to TraceForge proxy:**
+### 2. Point Your App to TraceForge
 
 ```bash
 export OPENAI_BASE_URL=http://localhost:8787/v1
 export OPENAI_API_KEY=sk-your-actual-key
 ```
 
-**2. Record AI responses:**
+### 3. Record AI Behavior
 
 ```bash
 # Run your app with recording enabled
@@ -128,33 +128,14 @@ TRACEFORGE_VCR_MODE=record node your-app.js
 # Responses saved to .ai-tests/cassettes/
 ```
 
-**3. Create a test file** (`.ai-tests/tests/example.yaml`):
-
-```yaml
-name: Summarization Test
-model: gpt-4
-messages:
-  - role: user
-    content: "Summarize: AI is transforming software development"
-
-assertions:
-  - type: contains
-    expected: "AI"
-    description: "Should mention AI"
-
-  - type: max-length
-    expected: 100
-    description: "Summary should be concise"
-```
-
-**4. Run tests with replay:**
+### 4. Commit Snapshots
 
 ```bash
-# Uses recorded responses (no API calls)
-TRACEFORGE_VCR_MODE=replay pnpm --filter @traceforge/cli test run
+git add .ai-tests/cassettes/
+git commit -m "Initial AI snapshots"
 ```
 
-**5. Enable CI enforcement:**
+### 5. Add CI Check
 
 ```yaml
 # .github/workflows/ci.yml
@@ -165,210 +146,141 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v2
       - run: pnpm install
       - run: pnpm build
-
-      - name: Run AI tests (strict mode)
-        run: TRACEFORGE_VCR_MODE=strict pnpm --filter @traceforge/cli test run
-        # ☝️ TraceForge establishes the gate: fail if snapshots missing or changed
+      
+      - name: Check AI behavior (STRICT)
+        run: pnpm traceforge check
+        env:
+          TRACEFORGE_VCR_MODE: strict
+        # ☝️ Fails if AI behavior changed
 ```
 
 ---
 
-## Strict Mode: The Authority on AI Behavior
-
-In `strict` mode, TraceForge establishes itself as **the final authority** on AI behavior changes—removing human judgment from whether changes are acceptable.
+## What Happens When AI Changes
 
 ```bash
-TRACEFORGE_VCR_MODE=strict npm test
+❌ BUILD FAILED
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 AI BEHAVIOR CHANGED WITHOUT APPROVAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHAT CHANGED:
+  Prompt:     src/agents/summarizer.py:12
+  Function:   generate_summary()
+  Model:      gpt-4-turbo → gpt-4o
+  
+BEHAVIORAL DIFF:
+  ┌─────────────────────────────────────────────────┐
+  │ Before: "Error: Invalid input format"          │
+  │ After:  "I apologize, but I cannot process..." │
+  └─────────────────────────────────────────────────┘
+
+WHY THIS MATTERS:
+  • Changed from error code to apology text
+  • Breaks downstream JSON parsing
+  • Would cause silent failures in production
+
+TO FIX: 
+   $ traceforge snapshot approve
+   $ git add .ai-snapshots/
+   $ git commit -m "Update AI behavior: switched to gpt-4o"
+
+❌ Build blocked. Approve snapshot changes to proceed.
 ```
 
-**This is change control for AI behavior:** Just as Git requires explicit commits for code changes, strict mode requires explicit snapshot approval for AI output changes.
-
-**Guarantees:**
-
-- ✅ Zero live API calls (tests fail fast if attempted)
-- ✅ Missing snapshot → immediate test failure
-- ✅ Changed AI response → test failure with diff
-- ✅ **Every AI behavior change requires explicit approval**
-- ✅ Non-bypassable enforcement at the infrastructure level
-
-**What this prevents:**
-
-- ❌ Untested AI changes reaching production
-- ❌ Silent AI behavior drift
-- ❌ Unclear "what changed?" in PRs
-- ❌ Individual developers shipping unapproved AI modifications
-
-Strict mode transforms TraceForge from an optional tool into **required infrastructure**—the authoritative gate through which all AI behavior changes must pass.
+**This is the product.** Everything else serves this failure message.
 
 ---
 
-## VCR Modes Explained
+## VCR Modes
 
-TraceForge operates in different modes for development vs. CI:
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| `record` | Call API and save responses | Creating snapshots |
+| `replay` | Use saved responses | Local testing |
+| `strict` | Replay only, hard fail if missing | **CI/CD** ✨ |
+| `auto` | Replay if exists, record if missing | Development |
+| `off` | Direct API calls, no recording | Live debugging |
 
-| Mode         | Behavior                              | Best For           |
-| ------------ | ------------------------------------- | ------------------ |
-| **`off`**    | Direct API calls, no recording        | Live debugging     |
-| **`record`** | Call API and save responses           | Creating snapshots |
-| **`replay`** | Use saved responses, error if missing | Local testing      |
-| **`auto`**   | Replay if exists, record if missing   | Development        |
-| **`strict`** | Replay only, hard fail on missing     | **CI/CD** ✨       |
-
----
-
-## Assertions: Enforcing AI Outputs
-
-TraceForge supports **11 assertion types** for comprehensive validation and policy enforcement:
-
-### Basic Assertions
-
-```yaml
-assertions:
-  # Exact match
-  - type: equals
-    expected: "Hello, world!"
-
-  # Substring check
-  - type: contains
-    expected: "world"
-
-  # Regex pattern
-  - type: matches
-    expected: "Hello, \\w+!"
-
-  # JSON structure
-  - type: json-schema
-    expected:
-      type: object
-      required: [name, age]
-      properties:
-        name: { type: string }
-        age: { type: number }
-```
-
-### Semantic Assertions
-
-Enforce AI outputs by **meaning**, not exact wording:
-
-```yaml
-assertions:
-  # Semantic similarity (uses embeddings)
-  - type: semantic-similarity
-    expected: "Paris is the capital of France"
-    threshold: 0.85
-    description: "Should convey Paris as capital"
-
-  # Contradiction detection
-  - type: semantic-contradiction
-    forbidden:
-      - "Paris is not in France"
-      - "London is the capital of France"
-    threshold: 0.70
-    description: "Should not contradict facts"
-```
-
-**Requirements:** Set `OPENAI_API_KEY` environment variable. Embeddings are cached for CI determinism.
-
-### Performance Assertions
-
-```yaml
-assertions:
-  # Response time
-  - type: max-latency-ms
-    expected: 2000
-
-  # Token efficiency
-  - type: max-tokens
-    expected: 500
-
-  # Length constraints
-  - type: max-length
-    expected: 100
-```
-
-📖 **Complete guide**: [guides/assertions.md](guides/assertions.md)
+In **strict mode**, TraceForge becomes a deploy gate:
+- ✅ Zero live API calls
+- ✅ Missing snapshot → build fails
+- ✅ Changed response → build fails
+- ✅ **Every AI change requires explicit approval**
 
 ---
 
-## Multi-Provider Support
-
-Use any LLM provider with the same interface:
-
-```typescript
-// OpenAI
-const response = await openai.chat.completions.create({
-  model: "gpt-4",
-  messages: [{ role: "user", content: "Hello" }],
-});
-
-// Anthropic Claude
-const response = await openai.chat.completions.create({
-  model: "claude-3-opus-20240229",
-  messages: [{ role: "user", content: "Hello" }],
-});
-
-// Google Gemini
-const response = await openai.chat.completions.create({
-  model: "gemini-pro",
-  messages: [{ role: "user", content: "Hello" }],
-});
-
-// Ollama (local, no API key)
-const response = await openai.chat.completions.create({
-  model: "llama2",
-  messages: [{ role: "user", content: "Hello" }],
-});
-```
-
-**Supported Providers:**
-
-- **OpenAI**: GPT-4, GPT-4 Turbo, GPT-3.5 Turbo
-- **Anthropic**: Claude 3 Opus, Claude 3 Sonnet, Claude 2.1
-- **Google**: Gemini Pro, Gemini Pro Vision
-- **Ollama**: Llama 2, Mistral, CodeLlama, Phi, and more
-
----
-
-## CLI Commands
+## Commands
 
 ```bash
-# Test management
-traceforge test run                    # Run all tests
-traceforge test run --watch            # Watch mode
-traceforge test run --parallel         # Parallel execution
-traceforge test run --junit out.xml    # JUnit report
+# Core command for CI
+traceforge check              # Verify snapshots, exit 1 on changes
 
-# Trace management
-traceforge trace list                  # List all traces
-traceforge trace show <id>             # View trace details
-traceforge trace compare <id1> <id2>   # Compare two traces
-traceforge trace compare --with-risk   # Include risk analysis
+# VCR management
+traceforge vcr status         # Show VCR configuration
+traceforge vcr list           # List all cassettes
+traceforge vcr clean          # Delete all cassettes
 
-# VCR cassette management
-traceforge vcr list                    # List cassettes
-traceforge vcr validate                # Validate cassette format
-traceforge vcr clean --older-than 30d  # Remove old cassettes
-
-# Risk analysis
-traceforge ci check                    # Run CI risk checks
-traceforge ci gate --threshold 7       # Fail if risk > 7
-
-# Project setup
-traceforge init                        # Initialize project
-traceforge start                       # Start all services
+# Development
+traceforge init               # Initialize project
+traceforge start              # Start proxy server
 ```
 
-📖 **Full reference**: [guides/cli.md](guides/cli.md)
+---
+
+## Examples
+
+### Basic Usage
+
+```javascript
+// Your existing code (no changes needed)
+import OpenAI from 'openai';
+
+const openai = new OpenAI({
+  baseURL: 'http://localhost:8787/v1',
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+const response = await openai.chat.completions.create({
+  model: 'gpt-4',
+  messages: [{ role: 'user', content: 'Hello' }],
+  temperature: 0,  // ← Must be 0 for determinism
+  seed: 42         // ← Recommended for reproducibility
+});
+```
+
+### Workflow
+
+```bash
+# Day 1: Record initial snapshots
+TRACEFORGE_VCR_MODE=record npm test
+git add .ai-tests/cassettes/
+git commit -m "Initial AI snapshots"
+
+# Day 2: Change a prompt
+# (edit src/prompts.js)
+
+# Day 3: Run tests - BLOCKED
+npm test
+# ❌ BUILD FAILED: AI behavior changed
+
+# Day 4: Review and approve
+git diff .ai-tests/cassettes/
+TRACEFORGE_VCR_MODE=record npm test
+git add .ai-tests/cassettes/
+git commit -m "Approved: updated prompt for clarity"
+
+# CI passes ✅
+```
 
 ---
 
 ## Architecture
-
-TraceForge operates as a control plane between your application and LLM providers, establishing authoritative governance over all AI interactions:
 
 ```
 ┌─────────────────┐
@@ -378,9 +290,9 @@ TraceForge operates as a control plane between your application and LLM provider
          ↓
 ┌─────────────────┐
 │ TraceForge      │
-│ Control Plane   │  → Records requests/responses as system of record
-└────────┬────────┘  → Enforces VCR mode and policies
-         │            → Applies non-bypassable governance
+│ Proxy           │  → Records requests/responses
+└────────┬────────┘  → Enforces VCR mode
+         │            → Blocks on changes
          ↓
 ┌─────────────────┐
 │ LLM Provider    │
@@ -390,287 +302,115 @@ TraceForge operates as a control plane between your application and LLM provider
          ↓
 ┌─────────────────┐
 │ .ai-tests/      │
-│ ├─ cassettes/   │  (VCR recordings - system of record)
-│ ├─ traces/      │  (Full execution logs - audit trail)
-│ └─ tests/       │  (Test definitions - policy enforcement)
+│  cassettes/     │  ← Git-committed snapshots
 └─────────────────┘
 ```
 
-### Components
-
-| Component             | Purpose                               | Technology        |
-| --------------------- | ------------------------------------- | ----------------- |
-| **Proxy Server**      | Intercepts LLM calls, records/replays | Fastify (Node.js) |
-| **CLI**               | Test runner, trace management         | Commander.js      |
-| **Web UI**            | Browse traces, compare diffs          | React + Vite      |
-| **API Server**        | REST API for trace operations         | Fastify           |
-| **VS Code Extension** | Editor integration                    | VS Code API       |
-| **Shared Package**    | Types, schemas, utilities             | TypeScript + Zod  |
-
---- ## Storage Backends
-
-TraceForge supports two storage backends depending on your scale:
-
-### File Storage (Default)
-
-**Best for**: Small teams, getting started, <10K traces
-
-✅ Zero configuration  
-✅ Git-friendly JSON files  
-✅ Easy to inspect and debug  
-⚠️ Performance degrades beyond 1K traces
-
-**Setup**: Enabled by default, no configuration needed.
-
-### SQLite Storage (Production)
-
-**Best for**: Production deployments, 10K+ traces, teams of 5+
-
-✅ **100x faster** queries with indexing  
-✅ Handles millions of traces  
-✅ ACID transactions  
-✅ Advanced SQL filtering  
-✅ Concurrent reads
-
-**Setup**:
-
-```bash
-# Enable SQLite backend
-export TRACEFORGE_STORAGE_BACKEND=sqlite
-export TRACEFORGE_SQLITE_PATH=.ai-tests/traces.db
-
-# Restart proxy
-pnpm --filter @traceforge/proxy start
-```
-
-### Comparison
-
-| Feature          | File Storage | SQLite                 |
-| ---------------- | ------------ | ---------------------- |
-| Setup            | None         | Build tools required   |
-| Max traces       | ~10,000      | 1,000,000+             |
-| Query speed      | O(n)         | O(log n) - 100x faster |
-| Filtering        | Client-side  | SQL queries            |
-| Git friendly     | ✅ Yes       | ❌ Binary              |
-| Production ready | Small scale  | ✅ Yes                 |
-
-**Migration path**: Start with file storage, migrate to SQLite when you exceed 5K traces.
+**Key insight:** Proxy is transparent. Your code doesn't change. Only the base URL changes.
 
 ---
 
-## Risk Scoring: The Decision Engine
+## Determinism Requirements
 
-TraceForge doesn't just measure changes—it **provides decision signals for deployment gates**. Risk scoring analyzes changes and feeds automated enforcement rules that determine if deployments proceed or halt.
+For snapshots to work, AI calls **must** be deterministic:
 
-```bash
-# Compare traces with risk analysis
-traceforge trace compare <baseline-id> <current-id> --with-risk
-```
+### ✅ Deterministic (Required)
 
-**Risk Levels**:
-
-- **Low (1-3)**: Cosmetic changes (formatting, punctuation)
-- **Medium (4-7)**: Semantic changes (meaning, tone shifts)
-- **High (8-10)**: Critical changes (safety, compliance, factual errors)
-
-**Analysis Factors**:
-
-- Semantic similarity (embedding-based)
-- Word overlap (Jaccard index)
-- Length deltas
-- Format changes (JSON, lists, code blocks)
-- Performance impact (latency, tokens)
-
-**Automated Enforcement in CI**:
-
-```yaml
-# Block deployments on high-risk changes
-- name: Check AI Changes
-  run: traceforge ci gate --max-risk 7
-  # ☝️ TraceForge decides: deploy or halt
-```
-
-Risk scoring connects directly to **policy enforcement**—it's not a metric to review, it's a gate that blocks or allows changes automatically.
-
-📖 **Full guide**: [guides/CI_CD_RISK_GUARDRAILS.md](guides/CI_CD_RISK_GUARDRAILS.md)
-
----
-
-## Examples & Guides
-
-### Examples
-
-- **[Strict CI Starter](examples/strict-ci-starter/)** ⭐ - Production-ready CI enforcement example
-- **[Demo App](examples/demo-app/)** - Basic usage walkthrough
-
-### User Guides
-
-- [Getting Started](guides/getting-started.md) - Installation and setup
-- [VCR Quick Reference](guides/VCR_QUICK_REFERENCE.md) - Mode cheat sheet
-- [Assertions Guide](guides/assertions.md) - All assertion types
-- [CLI Reference](guides/cli.md) - Complete command documentation
-- [Semantic Assertions](guides/SEMANTIC_ASSERTIONS_QUICK_START.md) - Meaning-based testing
-- [CI/CD Integration](guides/CI_ENFORCEMENT.md) - Pipeline setup patterns
-- [Environment Variables](guides/ENVIRONMENT_VARIABLES.md) - Configuration options
-
-### Technical Documentation
-
-- [API Reference](guides/API.md) - REST API endpoints
-- [Trace Format](guides/trace-format.md) - Trace file structure
-- [Baseline Format](guides/baseline-format.md) - Test file format
-- [VCR Design](guides/design/VCR_MODE_DESIGN.md) - Implementation details
-- [Architecture Review](docs/architecture-review.md) - System design
-
----
-
-## Development
-
-### Setup
-
-```bash
-# Install dependencies
-pnpm install
-
-# Build all packages
-pnpm build
-
-# Start development servers
-pnpm dev
-
-# Run tests
-pnpm test
-
-# Type check
-pnpm typecheck
-```
-
-### Project Structure
-
-```
-traceforge/
-├── packages/
-│   ├── shared/          # Types, schemas, utilities
-│   ├── proxy/           # Proxy server (Fastify)
-│   ├── cli/             # CLI tool (Commander)
-│   ├── web/             # Web UI (React + Fastify)
-│   └── vscode-extension/ # VS Code extension
-├── examples/
-│   ├── strict-ci-starter/ # Production CI example
-│   └── demo-app/         # Basic demo
-├── guides/              # User documentation
-└── docs/                # Technical specs
-```
-
-### Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
----
-
-## VS Code Extension
-
-Install from VS Code marketplace or build from source:
-
-**Features**:
-
-- 📂 Browse traces and tests in sidebar
-- ▶️ Run tests from editor
-- 🔄 Auto-refresh on changes
-- 💡 YAML snippets (type `tf-test`)
-- 🚀 Start/stop proxy from status bar
-
----
-
-## Policy Enforcement
-
-TraceForge enforces policies as code—defining what AI is **allowed** to say and automatically blocking violations in CI.
-
-Create `.traceforgerc.json` in your project root:
-
-```json
+```javascript
 {
-  "vcr": {
-    "mode": "auto",
-    "cassette_dir": ".ai-tests/cassettes",
-    "match_on": ["method", "uri", "body"]
-  },
-  "storage": {
-    "backend": "file",
-    "traces_dir": ".ai-tests/traces"
-  },
-  "policies": {
-    "max_latency_ms": 5000,
-    "max_tokens": 4000,
-    "block_patterns": ["password", "api_key", "ssn"],
-    "risk_threshold": "medium"
-  }
+  temperature: 0,    // ← Must be zero
+  seed: 42,          // ← Use fixed seed
+  model: 'gpt-4'     // ← Pin model version
 }
 ```
 
-**Policy Characteristics:**
+### ❌ Non-Deterministic (Fails CI)
 
-- ✅ **Policies define what AI is allowed to say** — Not suggestions, but rules
-- ✅ **Violations are non-bypassable** — Enforced automatically in CI
-- ✅ **Applied consistently** — Automated enforcement without manual intervention
-- ✅ **Version controlled** — Policy changes go through code review
+```javascript
+{
+  temperature: 0.7,  // ← Non-zero temperature
+  // Missing seed      ← No seed
+}
+```
 
-Policies are a **first-class governance concept**, not configuration options. They establish boundaries that AI behavior cannot cross.
+TraceForge detects non-determinism by running checks multiple times. If outputs vary, CI fails with clear instructions.
 
-📖 **Full reference**: [guides/ENVIRONMENT_VARIABLES.md](guides/ENVIRONMENT_VARIABLES.md)
+---
+
+## Supported Providers
+
+- **OpenAI**: GPT-4, GPT-4 Turbo, GPT-3.5 Turbo
+- **Anthropic**: Claude 3 (via OpenAI-compatible proxy)
+- **Local Models**: Ollama, LocalAI
+
+All providers use the OpenAI API format. Just change `baseURL`.
+
+---
+
+## Status
+
+**Current:** Early MVP, opinionated, works.
+
+**Supports:**
+- ✅ Record/replay for OpenAI-compatible APIs
+- ✅ Strict mode for CI enforcement
+- ✅ Hash-based integrity verification
+- ✅ CLI for snapshot management
+
+**Not coming yet:**
+- ❌ Web dashboards
+- ❌ Analytics
+- ❌ Cloud hosting
+- ❌ Multi-tenant deployments
+
+TraceForge is a **local-first tool**. It runs on your machine, commits to Git, and blocks in CI. No cloud service required.
+
+---
+
+## Documentation
+
+- [CI Failure Specification](docs/MVP_CI_FAILURE.md) - Exact terminal output
+- [Snapshot Format](docs/SNAPSHOT_FORMAT.md) - Canonical format definition
+- [Deletion Candidates](docs/DELETION_CANDIDATES.md) - Features to remove
 
 ---
 
 ## FAQ
 
 **Q: Does TraceForge work with my language/framework?**  
-A: Yes! TraceForge is infrastructure. Any language that can make HTTP requests to OpenAI-compatible APIs works (Python, JavaScript, Ruby, Go, etc.).
+A: Yes! Any language that makes HTTP requests to OpenAI-compatible APIs works (Python, JavaScript, Ruby, Go, etc.).
 
 **Q: Do I need to change my code?**  
-A: Only one line: set `OPENAI_BASE_URL=http://localhost:8787/v1`. No SDK changes required.
+A: No. Only set `OPENAI_BASE_URL=http://localhost:8787/v1`. No SDK changes required.
 
 **Q: What about API costs?**  
-A: In `strict` mode (CI), zero API calls are made. In development, use `replay` or `auto` mode to reuse recordings.
+A: In strict mode (CI), zero API calls are made. You only pay during local recording.
 
-**Q: How do I handle non-deterministic tests?**  
-A: Use semantic assertions instead of exact matching. TraceForge enforces by meaning, not exact text.
+**Q: How do I handle non-deterministic outputs?**  
+A: Set `temperature: 0` and use a `seed`. TraceForge will fail if outputs still vary.
 
-**Q: Can I use this in production?**  
-A: TraceForge is currently optimized for development and CI environments where it controls AI behavior changes. For production runtime monitoring, consider using dedicated LLM observability platforms alongside TraceForge's development-time governance.
+**Q: What if I want to change AI behavior?**  
+A: Change the code, record new snapshots, review the diff, commit. That's the workflow.
 
-**Q: How do I migrate from file to SQLite storage?**  
-A: Export traces to JSON, enable SQLite backend, import traces. See [guides/migrations.md](guides/migrations.md).
+**Q: Can I skip the check with --force?**  
+A: No. By design. If you need to skip it, you're using it wrong.
 
 ---
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-## Project Status
-
-**Current Version: v2.0** ✅
-
-- ✅ Core VCR record/replay functionality
-- ✅ Multi-provider support (OpenAI, Anthropic, Google, Ollama)
-- ✅ 11 assertion types including semantic validation
-- ✅ Risk scoring and CI enforcement
-- ✅ SQLite storage backend
-- ✅ Web UI and VS Code extension
-- ✅ Production-ready with circuit breakers and monitoring
-
-**Roadmap**:
-
-- 🔄 PostgreSQL backend for multi-tenant deployments
-- 🔄 Cloud storage adapters (S3, GCS)
-- 🔄 Advanced diff algorithms for structured outputs
-- 🔄 LangChain/LlamaIndex integration examples
+MIT — use it before your AI breaks production again.
 
 ---
 
 ## Support
 
-- 📖 [Documentation](guides/README.md)
-- 🐛 [Issue Tracker](https://github.com/your-org/traceforge/issues)
-- 💬 [Discussions](https://github.com/your-org/traceforge/discussions)
+- 📖 [Documentation](docs/)
+- 🐛 [Issue Tracker](https://github.com/slmallisetty/TraceForge.baseline/issues)
+- 💬 [Discussions](https://github.com/slmallisetty/TraceForge.baseline/discussions)
+
+---
+
+**Remember:** If your AI output changes, your build will fail.
+
+That's not a bug. That's the feature.
