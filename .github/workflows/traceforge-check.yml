@@ -1,0 +1,68 @@
+name: AI Behavior Check
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+jobs:
+  check-ai-behavior:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for baseline comparison
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Build packages
+        run: pnpm build
+      
+      - name: Check AI Behavior Changes
+        run: pnpm --filter @traceforge/cli exec traceforge check --baseline origin/main --strict
+        env:
+          TRACEFORGE_MODE: strict
+        
+      - name: Post failure comment
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const comment = `## ⚠️ AI Behavior Changes Detected
+            
+            Your PR introduces changes to AI behavior that require explicit approval.
+            
+            **Next Steps:**
+            1. Review the CI logs above for detailed changes
+            2. If intentional, approve the changes:
+               \`\`\`bash
+               traceforge check approve --all --reason "Your approval reason"
+               git add .ai-snapshots/*.approved.json
+               git commit -m "Approve AI behavior changes"
+               git push
+               \`\`\`
+            3. If unintentional, revert your changes
+            
+            **This PR cannot be merged until AI behavior is approved.**`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
