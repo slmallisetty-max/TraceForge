@@ -31,6 +31,8 @@ logs/
 
 # Internal documentation (reviews, implementation notes)
 docs/
+# Exception: MVP documentation should be committed
+!docs/MVP_*.md
 
 # Trace files (may contain sensitive data)
 **/traces/

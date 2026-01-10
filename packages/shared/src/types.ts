@@ -179,6 +179,60 @@ export interface GateFailure {
   severity: "critical" | "high" | "medium" | "low";
 }
 
+// AI Snapshot types (MVP - 2026 Q1)
+export interface AISnapshot {
+  id: string; // sha256 hash of content
+  test_name: string;
+  timestamp: string; // ISO 8601
+  git_commit?: string; // Git commit SHA
+  inputs: {
+    model: string;
+    messages?: ChatMessage[];
+    temperature?: number;
+    max_tokens?: number;
+    [key: string]: any;
+  };
+  output: {
+    content: string;
+    finish_reason: string;
+    usage?: Usage;
+  };
+  metadata: {
+    file?: string; // Source file path
+    line?: number; // Line number in source
+    function?: string; // Function name
+  };
+  // Approval fields (when approved)
+  approved?: boolean;
+  approved_by?: string;
+  approved_at?: string; // ISO 8601
+  approval_reason?: string;
+}
+
+export interface SnapshotComparison {
+  snapshot_id: string;
+  test_name: string;
+  status: "unchanged" | "changed" | "new" | "removed";
+  changes: SnapshotChange[];
+  impact: SnapshotImpact;
+}
+
+export interface SnapshotChange {
+  type: "model" | "prompt" | "parameters" | "output" | "non_deterministic";
+  field: string;
+  before?: any;
+  after?: any;
+  description: string;
+}
+
+export interface SnapshotImpact {
+  breaking: boolean;
+  severity: "low" | "medium" | "high";
+  reasons: string[];
+  cost_impact?: string;
+  latency_impact?: string;
+}
+
 // VCR types
 export type VCRMode = "off" | "record" | "replay" | "auto" | "strict";
 export type VCRMatchMode = "exact" | "fuzzy";

@@ -28,6 +28,7 @@ program.addCommand(testCommand);
 program.addCommand(vcrCommand);
 program.addCommand(embeddingsCommand);
 program.addCommand(ciCommand);
+program.addCommand(checkCommand);
 
 // Show helpful message if no command specified
 if (process.argv.length === 2) {
