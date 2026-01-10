@@ -22,6 +22,7 @@ program
 // Register commands
 program.addCommand(startCommand);
 program.addCommand(initCommand);
+program.addCommand(checkCommand);
 program.addCommand(traceCommand);
 program.addCommand(testCommand);
 program.addCommand(vcrCommand);

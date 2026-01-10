@@ -1,0 +1,49 @@
+name: AI Behavior Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+jobs:
+  check-ai-behavior:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Build TraceForge
+        run: pnpm build
+      
+      - name: Check AI Behavior (STRICT)
+        run: pnpm traceforge check
+        env:
+          TRACEFORGE_VCR_MODE: strict
+        # ☝️ This WILL fail if AI behavior changed
+        # No escape hatch. No --force flag.
+        # Approve snapshots or build stays red.
+      
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: ai-check-failure
+          path: |
+            .ai-tests/cassettes/
+            .ai-tests/traces/
+          retention-days: 7
