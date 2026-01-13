@@ -2,22 +2,20 @@
   "name": "traceforge",
   "version": "0.1.0",
   "private": true,
-  "description": "Local-first AI debugging platform",
+  "description": "If your AI output changes, your build will fail.",
   "keywords": [
     "ai",
-    "debugging",
+    "testing",
     "llm",
     "openai",
-    "testing"
+    "snapshots"
   ],
   "author": "TraceForge Team",
   "scripts": {
-    "dev": "concurrently -n proxy,web -c cyan,magenta \"pnpm --filter @traceforge/proxy dev\" \"pnpm --filter @traceforge/web dev\"",
-    "start": "concurrently -n proxy,web -c cyan,magenta \"pnpm --filter @traceforge/proxy start\" \"pnpm --filter @traceforge/web start\"",
+    "dev": "pnpm --filter @traceforge/proxy dev",
+    "start": "pnpm --filter @traceforge/proxy start",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "test:coverage": "pnpm -r test -- --coverage",
-    "test:demo": "node examples/demo-app/index.js",
     "clean": "pnpm -r clean",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
@@ -28,7 +26,6 @@
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^8.50.0",
     "@typescript-eslint/parser": "^8.50.0",
-    "concurrently": "^8.2.2",
     "eslint": "^8.57.1",
     "husky": "^8.0.3",
     "lint-staged": "^15.2.0",
@@ -41,11 +38,8 @@
     "packages/**/*.{js,jsx}": [
       "eslint --fix --max-warnings 0"
     ],
-    "**/.ai-tests/traces/**": [
-      "echo Warning: You are committing trace files. Review for sensitive data! && exit 1"
-    ],
-    "**/traces/**": [
-      "echo Warning: You are committing trace files. Review for sensitive data! && exit 1"
+    "**/.ai-tests/cassettes/**": [
+      "echo Warning: You are committing snapshot files. Review for sensitive data! && exit 1"
     ]
   },
   "engines": {
