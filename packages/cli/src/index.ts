@@ -1,48 +1,33 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { initCommand } from "./commands/init.js";
-import { traceCommand } from "./commands/trace.js";
+import { recordCommand } from "./commands/record.js";
 import { testCommand } from "./commands/test.js";
-import { startCommand } from "./commands/start.js";
-import { vcrCommand } from "./commands/vcr.js";
-import { embeddingsCommand } from "./commands/embeddings.js";
-import { ciCommand } from "./commands/ci.js";
-import { checkCommand } from "./commands/check.js";
+import { approveCommand } from "./commands/approve.js";
 
 const program = new Command();
 
 program
   .name("traceforge")
   .description(
-    "Local-first AI debugging platform - Simple, unified, developer-friendly"
+    "If your AI output changes, your build will fail."
   )
   .version("0.1.0");
 
-// Register commands
-program.addCommand(startCommand);
-program.addCommand(initCommand);
-program.addCommand(checkCommand);
-program.addCommand(traceCommand);
+// Register only the 3 MVP commands
+program.addCommand(recordCommand);
 program.addCommand(testCommand);
-program.addCommand(vcrCommand);
-program.addCommand(embeddingsCommand);
-program.addCommand(ciCommand);
-program.addCommand(checkCommand);
+program.addCommand(approveCommand);
 
 // Show helpful message if no command specified
 if (process.argv.length === 2) {
   console.log(`
-🔥 TraceForge - Local-first AI Debugging Platform
+🔥 TraceForge - If your AI output changes, your build will fail.
 
-Quick Start:
-  ${"\x1b[36m"}traceforge start${"\x1b[0m"}          Start all services (proxy + web)
-  ${"\x1b[36m"}traceforge init${"\x1b[0m"}           Initialize project
-  ${"\x1b[36m"}traceforge trace list${"\x1b[0m"}     List captured traces
-  ${"\x1b[36m"}traceforge test run${"\x1b[0m"}       Run tests
-
-Or run from project root:
-  ${"\x1b[36m"}pnpm dev${"\x1b[0m"}                 Start all services with hot reload
+MVP Commands:
+  ${"\x1b[36m"}traceforge record${"\x1b[0m"}    Record AI responses as snapshots
+  ${"\x1b[36m"}traceforge test${"\x1b[0m"}      Replay snapshots, fail on any difference
+  ${"\x1b[36m"}traceforge approve${"\x1b[0m"}   Approve changes and update snapshots
 
 For help: ${"\x1b[36m"}traceforge --help${"\x1b[0m"}
 `);
