@@ -1,6 +1,4 @@
 import { Command } from "commander";
-import { readdir, readFile, writeFile } from "fs/promises";
-import { resolve, join } from "path";
 import { existsSync } from "fs";
 import chalk from "chalk";
 
