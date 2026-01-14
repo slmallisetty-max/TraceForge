@@ -1,6 +1,7 @@
 {
   "name": "@traceforge/proxy",
   "version": "0.1.0",
+  "license": "UNLICENSED",
   "description": "Local LLM proxy server for TraceForge",
   "main": "./dist/index.js",
   "type": "module",

@@ -1,6 +1,7 @@
 {
   "name": "@traceforge/shared",
   "version": "0.1.0",
+  "license": "UNLICENSED",
   "description": "Shared TypeScript types and schemas for TraceForge",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
