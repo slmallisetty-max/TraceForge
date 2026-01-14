@@ -419,3 +419,300 @@ This stays squarely in tech tooling
 It fits your background
 
 It can make serious money
+
+---
+
+1️⃣ A Sharp Product
+
+> One job. One sentence. No ambiguity.
+
+
+
+What this means in practice
+
+If TraceForge disappeared tomorrow, users should say:
+
+> “We lost the tool that stops AI behavior changes from silently reaching production.”
+
+
+
+If they say anything longer — it’s not sharp enough.
+
+How you enforce sharpness
+
+❌ No dashboards in v1
+
+❌ No analytics charts
+
+❌ No “platform”
+
+❌ No “observability”
+
+
+✅ Only these verbs exist:
+
+Record
+
+Compare
+
+Fail
+
+Approve
+
+
+Litmus test
+
+If a feature does not help fail CI when AI behavior changes, it does not ship.
+
+This discipline alone eliminates 80% of bad roadmap decisions.
+
+
+---
+
+2️⃣ Clear Value
+
+> The user must understand value in under 30 seconds.
+
+
+
+Your value is NOT
+
+“AI safety”
+
+“Trust”
+
+“Reliability”
+
+“Governance”
+
+
+Those are abstract.
+
+Your value IS
+
+> “Your AI will not change behavior without you explicitly approving it.”
+
+
+
+That’s it.
+
+How you make value obvious
+
+Your README must show one failing CI example immediately:
+
+❌ AI behavior changed
+- Intent: unchanged
+- Tone: changed
+- Policy reference: added
+
+Action required:
+  traceforge approve
+
+If a dev sees this and nods — you’ve won.
+
+
+---
+
+3️⃣ Good Docs
+
+> Docs are not explanation. Docs are onboarding automation.
+
+
+
+Rule #1 (non-negotiable)
+
+If someone needs a blog post to understand the tool — the product is broken.
+
+Minimum doc set (nothing more)
+
+1. README
+
+What problem this solves (3 lines)
+
+5-minute quickstart
+
+One CI failure example
+
+
+
+2. Concepts
+
+What is “behavior”
+
+What is a “baseline”
+
+What approval means
+
+
+
+3. Recipes
+
+Chatbot
+
+Classifier
+
+Agent
+
+
+
+
+No theory. No philosophy.
+
+Writing style rule
+
+If a sentence:
+
+Explains why AI is hard
+
+Uses buzzwords
+
+Sounds like marketing
+
+
+→ delete it.
+
+
+---
+
+4️⃣ Reliability
+
+> A reliability tool must be more reliable than the system it protects.
+
+
+
+This is where many dev tools die.
+
+What reliability means here
+
+Deterministic behavior
+
+Same input → same result
+
+No flaky diffs
+
+No random failures
+
+
+Concrete rules
+
+Default to strict mode
+
+No hidden heuristics
+
+Every decision must be explainable
+
+If unsure → fail clearly
+
+
+Silent success is worse than loud failure.
+
+
+---
+
+The mental model you should keep
+
+TraceForge is not:
+
+A judge
+
+A scorer
+
+A predictor
+
+
+It is a gatekeeper.
+
+Gatekeepers must be:
+
+Predictable
+
+Conservative
+
+Boring
+
+Loud when something changes
+
+
+Boring = trusted.
+
+
+---
+
+What this looks like as a product personality
+
+Trait	TraceForge should feel like
+
+UI	Minimal, utilitarian
+Output	Short, precise
+Errors	Explicit, actionable
+Defaults	Conservative
+Philosophy	“Nothing passes unnoticed”
+
+
+If it feels exciting — you’ve probably added the wrong thing.
+
+
+---
+
+A simple checklist (print this)
+
+Before shipping anything, ask:
+
+Does this reduce unnoticed AI behavior change?
+
+Does this make CI failure clearer?
+
+Does this reduce developer confusion?
+
+Does this increase trust?
+
+
+If any answer is “no” → don’t ship.
+
+
+---
+
+Why this combination makes money
+
+Sharp → easy to adopt
+
+Clear value → easy to sell
+
+Good docs → low support cost
+
+Reliable → low churn
+
+
+This is exactly how:
+
+GitHub Actions
+
+Terraform
+
+ESLint
+
+Jest
+
+
+became default tools.
+
+TraceForge belongs in this category.
+
+
+---
+
+Your next concrete move (don’t skip)
+
+Do one of these next:
+
+1. Rewrite the README to enforce sharpness
+
+
+2. Design the semantic diff v1 spec
+
+
+3. Define the first paid feature boundary
+
+
+4. Write a “What we will never build” doc
+
