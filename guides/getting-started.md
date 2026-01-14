@@ -373,15 +373,12 @@ Enable GitHub Actions in repository settings:
 
 - [Trace Format](./trace-format.md) - Complete trace schema
 - [Baseline Format](./baseline-format.md) - Test and assertion format
-- [Security Policy](../SECURITY.md) - Security best practices
-- [Contributing Guide](../CONTRIBUTING.md) - How to contribute
 
 ## Getting Help
 
-- **Issues**: Create a GitHub issue with bug report template
-- **Questions**: Use the question template
-- **Security**: Email security@traceforge.dev (or use private advisory)
-- **Contributions**: See CONTRIBUTING.md
+- **Issues**: Contact TraceForge support
+- **Questions**: Contact TraceForge support
+- **Security**: Email security@traceforge.dev
 
 ## Next Steps
 

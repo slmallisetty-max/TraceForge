@@ -813,8 +813,7 @@ No authentication required (local development).
 **Official:**
 - None yet
 
-**Community:**
-- Use any HTTP client (fetch, axios, curl)
+**Use any HTTP client:** (fetch, axios, curl)
 
 **Example (Node.js):**
 ```javascript

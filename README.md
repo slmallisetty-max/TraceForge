@@ -177,12 +177,12 @@ If it doesn't hurt, it doesn't work.
 
 ---
 
-## License
-
-MIT
-
----
-
 **Remember:** If your AI output changes, your build will fail.
 
 That's not a bug. That's the feature.
+
+---
+
+## Copyright
+
+© 2026 TraceForge. All rights reserved. This is proprietary software.
