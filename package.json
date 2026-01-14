@@ -2,14 +2,8 @@
   "name": "traceforge",
   "version": "0.1.0",
   "private": true,
-  "description": "If your AI output changes, your build will fail.",
-  "keywords": [
-    "ai",
-    "testing",
-    "llm",
-    "openai",
-    "snapshots"
-  ],
+  "license": "UNLICENSED",
+  "description": "If your AI output changes, your build will fail. Proprietary software.",
   "author": "TraceForge Team",
   "scripts": {
     "dev": "pnpm --filter @traceforge/proxy dev",

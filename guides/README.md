@@ -35,7 +35,7 @@
 
 ## 🏗️ Architecture Documentation
 
-For developers and contributors:
+For developers:
 
 - **[Architecture Review](../docs/architecture-review.md)** - System design analysis
 - **[Authentication](../docs/AUTHENTICATION.md)** - Auth implementation

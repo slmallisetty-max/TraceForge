@@ -17,7 +17,7 @@
     "ci"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "dependencies": {
     "openai": "^4.0.0"
   }

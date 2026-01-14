@@ -134,19 +134,7 @@ docs/
 ## 📖 Additional Resources
 
 - [Main README](../README.md) - Project overview and quick start
-- [Contributing Guidelines](../CONTRIBUTING.md) - Development workflow
 - [Architecture Review](architecture-review.md) - Technical architecture
-
----
-
-## 🤝 Contributing to Documentation
-
-Found an issue or want to improve the documentation?
-
-1. **For typos/corrections:** Open a PR with fixes
-2. **For new runbooks:** Follow the template in existing runbooks
-3. **For compliance updates:** Consult legal team first
-4. **For operational procedures:** Test thoroughly before documenting
 
 ---
 

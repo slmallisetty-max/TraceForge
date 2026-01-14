@@ -1,6 +1,7 @@
 {
   "name": "@traceforge/cli",
   "version": "0.1.0",
+  "license": "UNLICENSED",
   "description": "Command-line tool for TraceForge",
   "main": "./dist/index.js",
   "type": "module",

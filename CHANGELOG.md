@@ -112,7 +112,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **License**: Changed from MIT to Apache 2.0.
 - Improved error handling in Proxy server.
 - Enhanced streaming support with chunk limits to prevent OOM.
 - Updated documentation structure.

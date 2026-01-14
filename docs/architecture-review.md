@@ -1039,9 +1039,6 @@ const REDACTION_PATTERNS = {
 
 ```
 README.md                               ✅ Comprehensive
-CONTRIBUTING.md                         ✅
-SECURITY.md                             ✅
-CODE_OF_CONDUCT.md                      ✅
 
 docs/
   ├── PRODUCT_KT.md                     ✅ Clear vision

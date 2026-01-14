@@ -8,7 +8,7 @@ Without VCR mode:
 
 * CI requires live API keys
 * Tests are flaky (LLMs are non-deterministic)
-* Contributors cannot run tests
+* Tests cannot run without API access
 * Costs increase with every test run
 
 **VCR mode solves this by recording real LLM responses once and replaying them later.**
@@ -16,7 +16,7 @@ Without VCR mode:
 This is **not optional infrastructure** — it is required for:
 
 * CI
-* contributor experience
+* developer experience
 * regression enforcement
 
 ---
@@ -145,7 +145,7 @@ Used for:
 Used for:
 
 * local iteration
-* onboarding contributors
+* developer onboarding
 
 ---
 
@@ -316,7 +316,7 @@ This guarantees:
 
 * deterministic tests
 * zero cost
-* contributor friendliness
+* easy testing
 
 ---
 
